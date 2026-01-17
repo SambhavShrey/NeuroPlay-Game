@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Infinite Cosmos: Reign of Empires</title>
+  <meta charset="utf-8"/>
+  <style>
+    body{margin:0;overflow:hidden;background:black;color:#ddd;font-family:monospace}
+    #hud{position:fixed;left:10px;top:10px;background:rgba(0,0,0,.7);padding:10px;border-radius:10px;max-width:480px}
+    #menu{position:fixed;inset:0;background:rgba(0,0,0,.9);display:none;align-items:center;justify-content:center}
+    #menuBox{background:#111;border:1px solid #444;border-radius:12px;padding:20px;min-width:360px}
+    #map{position:fixed;right:10px;top:10px;background:#0b0b0b;border:1px solid #333;border-radius:10px;padding:10px;max-height:60vh;overflow:auto;display:none}
+    #log{position:fixed;right:10px;bottom:10px;width:480px;max-height:35vh;overflow:auto;background:#0b0b0b;border:1px solid #333;border-radius:10px;padding:10px}
+    #chat{position:fixed;right:10px;bottom:10px;width:480px;max-height:35vh;overflow:auto;background:#0b0b0b;border:1px solid #333;border-radius:10px;padding:10px;display:none}
+    button{background:#333;color:#fff;border:none;padding:8px 14px;margin:6px;border-radius:8px}
+    #crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:40px;height:40px;border:2px solid #0f0;border-radius:50%;pointer-events:none}
+    #targetInfo{position:fixed;top:50%;left:50%;transform:translate(calc(-50% + 60px),-50%);background:rgba(0,0,0,.8);padding:8px 12px;border:1px solid #0f0;border-radius:6px;color:#0f0;font-size:12px;display:none;pointer-events:none;white-space:nowrap}
+    #mouseControls{position:fixed;bottom:10px;left:10px;background:rgba(0,0,0,.7);padding:8px;border-radius:8px;font-size:11px;color:#666}
+    #timeSpeedPanel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.95);border:2px solid #0ff;border-radius:12px;padding:20px;display:none;min-width:300px;text-align:center;z-index:1000}
+    #timeSpeedPanel h3{color:#0ff;margin:0 0 15px 0}
+    #timeSpeedSlider{width:250px;height:6px;border-radius:3px;background:#333;outline:none;cursor:pointer}
+    #timeSpeedValue{color:#0ff;font-size:16px;font-weight:bold;margin:15px 0}
+    #timeSpeedPanel button{margin:10px 5px;min-width:60px}
+    #speedUpBtn,#speedDownBtn{background:#0ff;color:#000;font-weight:bold}
+    #helpPanel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.95);border:2px solid #0f0;border-radius:12px;padding:25px;display:none;max-width:600px;max-height:80vh;overflow-y:auto;z-index:1000;color:#0f0}
+    #helpPanel h2{color:#0f0;margin-top:0;text-align:center}
+    #helpPanel h3{color:#0ff;margin-top:15px}
+    #helpPanel p{margin:8px 0;line-height:1.5}
+    #helpPanel .controls{background:rgba(0,255,0,.1);padding:10px;border-radius:6px;margin:10px 0}
+  </style>
+</head>
+<body>
+
+<div id="hud"></div>
+<div id="map"></div>
+<div id="log">World log…</div>
+<div id="chat">NPC chat…</div>
+<div id="crosshair"></div>
+<div id="targetInfo"></div>
+<div id="mouseControls">🖱 Mouse: Look | W/A/S/D: Move | Space/Ctrl: Up/Down | T: Time Speed</div>
+
+<div id="timeSpeedPanel">
+  <h3>⏱ TIME SPEED</h3>
+  <input type="range" id="timeSpeedSlider" min="0.1" max="10" step="0.1" value="1">
+  <div id="timeSpeedValue">1.0x</div>
+  <button id="speedDownBtn" onclick="changeTimeSpeed(-0.5)">- Slower</button>
+  <button id="speedUpBtn" onclick="changeTimeSpeed(0.5)">Faster +</button>
+  <button onclick="resetTimeSpeed()">Normal (1x)</button>
+  <button onclick="closeTimeSpeedPanel()">Close (T)</button>
+</div>
+
+<div id="menu">
+  <div id="menuBox">
+    <h3>Universe Menu</h3>
+    <button onclick="saveGame()">Save</button>
+    <button onclick="loadGame()">Load</button>
+    <button onclick="toggleTimeSpeedPanel()">⏱ Time Speed</button>
+    <button onclick="miracle()">Miracle</button>
+    <button onclick="disaster()">Disaster</button>
+    <button onclick="plague()">Plague</button>
+    <button onclick="newNation()">Create Nation</button>
+    <button onclick="imperialEdict()">Imperial Edict</button>
+    <button onclick="toggleHelpPanel()">Help</button>
+    <button onclick="toggleMenu()">Close</button>
+  </div>
+</div>
+
+<div id="helpPanel">
+  <h2>⚡ HELP & CONTROLS</h2>
+  
+  <h3>🎮 MOVEMENT</h3>
+  <div class="controls">
+    <p><b>W</b> = Forward | <b>S</b> = Backward</p>
+    <p><b>A</b> = Left | <b>D</b> = Right</p>
+    <p><b>Space</b> = Up | <b>Ctrl</b> = Down</p>
+  </div>
+
+  <h3>👁️ CAMERA & TARGETING</h3>
+  <div class="controls">
+    <p><b>Mouse Move</b> = Look around</p>
+    <p><b>Mouse Click</b> = Target & interact with systems/NPCs</p>
+    <p><b>Mouse Scroll</b> = Zoom in/out</p>
+  </div>
+
+  <h3>⏱️ TIME CONTROL</h3>
+  <div class="controls">
+    <p><b>T</b> = Open Time Speed Panel</p>
+    <p>Use slider or buttons to adjust time speed (0.1x - 10x)</p>
+  </div>
+
+  <h3>🌍 EXPLORATION</h3>
+  <div class="controls">
+    <p><b>Tab</b> = Land on planet / Return to space</p>
+    <p><b>F</b> = Interact with nearest target</p>
+    <p><b>H</b> = Engage autopilot (Galaxy only)</p>
+    <p><b>M</b> = Toggle map view</p>
+  </div>
+
+  <h3>⚔️ COMBAT & EVENTS</h3>
+  <div class="controls">
+    <p><b>B</b> = Start battle at current system</p>
+    <p>Watch as civilizations wage war for dominance</p>
+  </div>
+
+  <h3>📊 GAME MECHANICS</h3>
+  <p><b>Emperor System:</b> Rule over empires and issue edicts</p>
+  <p><b>Trading:</b> Establish trade routes between star systems</p>
+  <p><b>NPCs:</b> Citizens with emotions, relationships, and needs</p>
+  <p><b>World Events:</b> Plagues, wars, and natural disasters</p>
+
+  <button onclick="toggleHelpPanel()" style="width:100%;margin-top:15px">Close Help</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160/build/three.min.js"></script>
+
+<script>
+/* ===================== CONFIG ===================== */
+// Optional ChatGPT hook (local testing only; do not publish keys)
+const OPENAI_API_KEY = ""; // leave empty to use fallback
+const OPENAI_MODEL = "gpt-4o-mini";
+
+/* ===================== GLOBAL STATE ===================== */
+let mode = "GALAXY"; // GALAXY | PLANET
+let currentSystem = null;
+let mouse = {x: 0, y: 0, down: false, targetSystem: null, targetNPC: null, moveForward: false, moveBack: false, moveLeft: false, moveRight: false};
+let mouseSensitivity = 0.003;
+let cameraRotation = {x: 0, y: 0};
+let timeSpeed = 1;
+let plagueLastLogged = 0;
+let moveUp = false, moveDown = false;
+
+let world = {
+  year: 2500, day: 1, hour: 6,
+  weather: "Clear", temperature: 22,
+  disease: 5, food: 12000,
+  economy: 90000, corruption: 12,
+  history: []
+};
+
+/* ===================== UTILS ===================== */
+const rand = (a,b)=>Math.floor(Math.random()*(b-a)+a);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+function log(msg){
+  world.history.push(msg);
+  const el=document.getElementById("log");
+  el.innerText = world.history.slice(-12).join("\n");
+}
+
+/* ===================== THREE.JS WORLD (MOVED EARLY) ===================== */
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x000010);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,5000);
+camera.position.set(0,50,120);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight); document.body.appendChild(renderer.domElement);
+scene.add(new THREE.AmbientLight(0x404040));
+const sun=new THREE.PointLight(0xffffff,2,2000); sun.position.set(0,0,0); scene.add(sun);
+
+// starfield
+const starsGeo=new THREE.BufferGeometry(), pts=[];
+for(let i=0;i<4000;i++) pts.push(rand(-2000,2000),rand(-2000,2000),rand(-2000,2000));
+starsGeo.setAttribute("position",new THREE.Float32BufferAttribute(pts,3));
+scene.add(new THREE.Points(starsGeo,new THREE.PointsMaterial({color:0xffffff,size:1})));
+
+// planet ground + city
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(400,400),new THREE.MeshStandardMaterial({color:0x223322}));
+ground.rotation.x=-Math.PI/2; ground.visible=false; scene.add(ground);
+const buildings=[];
+for(let i=0;i<120;i++){
+  const h=rand(6,30);
+  const b=new THREE.Mesh(new THREE.BoxGeometry(6,h,6),new THREE.MeshStandardMaterial({color:0x555555}));
+  b.position.set(rand(-180,180),h/2,rand(-180,180)); b.visible=false; buildings.push(b); scene.add(b);
+}
+
+// player ship & rover
+const ship=new THREE.Mesh(new THREE.ConeGeometry(6,16,8),new THREE.MeshStandardMaterial({color:0xff3333, emissive:0xff1111, emissiveIntensity:0.6}));
+ship.rotation.x=Math.PI/2; scene.add(ship);
+
+// ship aura ring
+const shipRing=new THREE.Mesh(new THREE.TorusGeometry(12,0.8,8,32), new THREE.MeshStandardMaterial({color:0xff6666, emissive:0xff3333, emissiveIntensity:0.8}));
+shipRing.rotation.x=Math.PI/2; ship.add(shipRing);
+
+// ship light
+const shipLight=new THREE.PointLight(0xff3333, 1.5, 50);
+ship.add(shipLight);
+
+const rover=new THREE.Mesh(new THREE.BoxGeometry(6,3,8),new THREE.MeshStandardMaterial({color:0x33ff66, emissive:0x00ff00, emissiveIntensity:0.5}));
+rover.visible=false; scene.add(rover);
+
+// rover aura ring
+const roverRing=new THREE.Mesh(new THREE.TorusGeometry(10,0.6,8,32), new THREE.MeshStandardMaterial({color:0x66ff66, emissive:0x00ff00, emissiveIntensity:0.7}));
+roverRing.rotation.x=Math.PI/2; rover.add(roverRing);
+
+// rover light
+const roverLight=new THREE.PointLight(0x33ff66, 1.5, 50);
+rover.add(roverLight);
+
+// NPCs on planet
+let population=[];
+function spawnCitizens(n=25){ for(let i=0;i<n;i++) population.push(new Person()); }
+
+/* ===================== MESH FACTORIES ===================== */
+function makeStarMesh(hasPort){
+  const mat = new THREE.MeshStandardMaterial({color:0xffff00,emissive:0xffaa00});
+  const star = new THREE.Mesh(new THREE.SphereGeometry(4,16,16),mat);
+  if(hasPort){
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(7,0.6,8,24), new THREE.MeshStandardMaterial({color:0x00ccff}));
+    ring.rotation.x=Math.PI/2; star.add(ring);
+  }
+  return star;
+}
+function makeLaneLine(p1,p2){
+  const geom=new THREE.BufferGeometry().setFromPoints([p1,p2]);
+  const mat=new THREE.LineBasicMaterial({color:0x00ccff});
+  return new THREE.Line(geom,mat);
+}
+function makeNPCMesh(){
+  return new THREE.Mesh(new THREE.CapsuleGeometry(0.5,1.5),new THREE.MeshStandardMaterial({color:0x00ffff}));
+}
+
+/* ===================== MICRO: PEOPLE ===================== */
+class Person{
+  constructor(){
+    this.id = Math.floor(Math.random()*1e9);
+    this.age=0; this.energy=100; this.alive=true;
+    this.brain={intelligence:Math.random(),empathy:Math.random(),aggression:Math.random(),loyalty:Math.random(),immunity:Math.random()};
+    this.emotions={love:0,anger:0,fear:0};
+    this.partner=null; this.children=[]; this.reputation=0; this.infected=false;
+    this.mesh = makeNPCMesh(); scene.add(this.mesh);
+    this.mesh.position.set(rand(-80,80),1,rand(-80,80));
+  }
+  think(pop){
+    if(this.energy<30) return "food";
+    if(!this.partner && Math.random()<0.01) return "love";
+    if(this.emotions.anger>50 && Math.random()<this.brain.aggression) return "revenge";
+    return "work";
+  }
+  act(pop){
+    const a=this.think(pop);
+    if(a==="food" && world.food>0){ this.energy+=20; world.food-=20; }
+    if(a==="work"){ this.energy-=5; world.food+=5; world.economy+=2; }
+    if(a==="love"){
+      const o=pop[Math.floor(Math.random()*pop.length)];
+      if(o && o!==this && !o.partner && !this.partner){
+        this.partner=o; o.partner=this; this.emotions.love=100; o.emotions.love=100;
+        log("Two citizens fell in love");
+      }
+    }
+    if(a==="revenge"){
+      const t=pop[Math.floor(Math.random()*pop.length)];
+      if(t && t!==this){ t.alive=false; log("A murder occurred (revenge)"); }
+    }
+    if(world.disease>20 && Math.random()>this.brain.immunity) this.infected=true;
+    if(this.infected){ this.energy-=3; if(Math.random()<this.brain.immunity*0.01) this.infected=false; }
+    this.energy-=1; this.age++;
+    if(this.energy<=0){ this.alive=false; scene.remove(this.mesh); log("A citizen died"); }
+    this.mesh.position.x+=rand(-1,1)*0.3; this.mesh.position.z+=rand(-1,1)*0.3;
+  }
+}
+
+/* ===================== MACRO: NATIONS ===================== */
+class Nation{
+  constructor(name){
+    this.name=name; this.population=rand(20000,80000);
+    this.treasury=rand(8000,30000); this.military=rand(2000,8000);
+    this.stability=Math.random()*100; this.ruler=new Ruler(this);
+  }
+  evolve(){
+    this.treasury+=this.population*0.01;
+    this.population*=1+Math.random()*0.001;
+    this.stability+=Math.random()*2-1;
+    if(this.stability<30 && Math.random()<0.02){
+      this.military*=0.7; this.population*=0.8; log(`${this.name} fell into civil war`);
+    }
+  }
+}
+class Ruler{
+  constructor(n){ this.name="Ruler-"+rand(1000,9999); this.age=rand(20,60); this.popularity=Math.random()*100; this.n=n; }
+  rule(){
+    this.age++; this.popularity+=Math.random()*2-1;
+    if(this.popularity<30 && Math.random()<0.02){ log(`${this.name} was assassinated in ${this.n.name}`); this.n.ruler=new Ruler(this.n); }
+  }
+}
+let nations=[new Nation("Aurelian Empire"), new Nation("Solar Kingdom"), new Nation("Crimson Republic")];
+
+/* ===================== EMPEROR SYSTEM ===================== */
+let Emperor = {
+  name: "Aurex I",
+  age: 45,
+  authority: 80,
+  legitimacy: 70,
+  edicts: [],
+  reignStartYear: world.year,
+  dynasty: "Solaris"
+};
+
+function crownEmperor(){
+  Emperor = {
+    name: "Aurex "+(Math.floor(Math.random()*9)+1),
+    age: rand(30,60),
+    authority: rand(60,90),
+    legitimacy: rand(50,90),
+    edicts: [],
+    reignStartYear: world.year,
+    dynasty: ["Solaris","Orion","Nova","Aether"][rand(0,4)]
+  };
+  log(`👑 ${Emperor.name} of House ${Emperor.dynasty} crowned Emperor`);
+}
+crownEmperor();
+
+function imperialEdict(){
+  const edicts = [
+    "Universal Tax Reform",
+    "Galactic Military Expansion",
+    "Trade Liberalization",
+    "Anti-Piracy Crusade",
+    "Imperial Infrastructure Program",
+    "Colonization Mandate"
+  ];
+  const e = edicts[rand(0,edicts.length)];
+  Emperor.edicts.push({year:world.year, text:e});
+  world.economy += 500;
+  nations.forEach(n=>n.stability+=3);
+  log(`📜 Imperial Edict issued: ${e}`);
+}
+
+function imperialSuccession(){
+  if(Emperor.age>80 || Math.random()<0.001){
+    log(`⚰ Emperor ${Emperor.name} has died`);
+    crownEmperor();
+  }
+}
+
+/* ===================== GALAXY ===================== */
+class StarSystem{
+  constructor(name,x,y,z){
+    this.name=name; this.pos=new THREE.Vector3(x,y,z);
+    this.planets=[]; this.owner=null; this.population=0;
+    this.hasStarport = Math.random()<0.4;
+    for(let i=0;i<rand(2,6);i++) this.planets.push({name:`${name}-${i+1}`,habitable:Math.random()<0.5,colonized:false,pop:0});
+    this.mesh=makeStarMesh(this.hasStarport); this.mesh.position.copy(this.pos); this.mesh.userData.system=this; scene.add(this.mesh);
+  }
+}
+class Civilization{
+  constructor(name){ this.name=name; this.population=rand(5e6,5e7); this.tech=Math.random()*50; this.military=rand(3000,12000); this.systems=[]; this.trade=0; }
+  expand(sys){
+    sys.owner=this; this.systems.push(sys); log(`${this.name} colonized ${sys.name}`);
+    sys.planets.forEach(p=>{ if(p.habitable&&!p.colonized){ p.colonized=true; p.pop=rand(100000,800000); sys.population+=p.pop; }});
+  }
+  evolve(){ this.tech+=Math.random()*0.1; this.population*=1+Math.random()*0.002; this.trade+=Math.random()*10; }
+}
+let civilizations=[new Civilization("Terran Federation"), new Civilization("Orion Empire")];
+
+let starSystems=[];
+for(let i=0;i<40;i++) starSystems.push(new StarSystem(`System-${i}`,rand(-500,500),rand(-200,200),rand(-500,500)));
+
+/* ===================== HYPERLANES ===================== */
+class Hyperlane{
+  constructor(a,b){
+    this.a=a; this.b=b;
+    this.length=a.pos.distanceTo(b.pos);
+    this.traffic=0; this.risk=Math.random();
+    this.line=makeLaneLine(a.pos,b.pos); scene.add(this.line);
+  }
+}
+let hyperlanes=[];
+function buildHyperlanes(k=2){
+  hyperlanes.forEach(l=>scene.remove(l.line)); hyperlanes=[];
+  starSystems.forEach(a=>{
+    const nearest=starSystems.filter(b=>b!==a)
+      .sort((u,v)=>a.pos.distanceTo(u.pos)-a.pos.distanceTo(v.pos)).slice(0,k);
+    nearest.forEach(b=>{
+      if(!hyperlanes.find(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a))){
+        hyperlanes.push(new Hyperlane(a,b));
+      }
+    });
+  });
+}
+buildHyperlanes(2);
+
+/* ===================== TRADE & PATROLS ===================== */
+class TradeRoute{
+  constructor(from,to,good){
+    this.from=from; this.to=to; this.good=good;
+    this.volume=rand(50,200); this.profit=0;
+    this.lane=findLane(from,to);
+  }
+  tick(){
+    if(this.lane){
+      this.lane.traffic+=0.01;
+      const base=this.volume*(1-this.lane.risk*0.3);
+      this.profit+=base*0.2; world.economy+=base*0.05;
+      if(Math.random()<this.lane.risk*0.001){
+        log(`Pirates hit a ${this.good} convoy between ${this.from.name} and ${this.to.name}`);
+        this.volume*=0.9;
+      }
+    }
+  }
+}
+function findLane(a,b){
+  return hyperlanes.find(l=>(l.a===a&&l.b===b)||(l.a===b&&l.b===a))||null;
+}
+let tradeRoutes=[];
+(function seedTrade(){
+  for(let i=0;i<8;i++){
+    const a=starSystems[rand(0,starSystems.length)];
+    const b=starSystems[rand(0,starSystems.length)];
+    if(a!==b) tradeRoutes.push(new TradeRoute(a,b,["Food","Tech","Medicine","Metals"][rand(0,4)]));
+  }
+})();
+
+class Patrol{
+  constructor(owner,lane){
+    this.owner=owner; this.lane=lane; this.t=Math.random();
+    this.mesh=new THREE.Mesh(new THREE.SphereGeometry(1.2,12,12),new THREE.MeshStandardMaterial({color:0x66ff66}));
+    scene.add(this.mesh);
+  }
+  tick(){
+    this.t+=0.001;
+    const a=this.lane.a.pos, b=this.lane.b.pos;
+    const pos=a.clone().lerp(b,(Math.sin(this.t)+1)/2);
+    this.mesh.position.copy(pos);
+    this.lane.risk=Math.max(0,this.lane.risk-0.0002);
+  }
+}
+let patrols=[];
+(function spawnPatrols(n=6){
+  for(let i=0;i<n;i++){
+    const lane=hyperlanes[rand(0,hyperlanes.length)];
+    const civ=civilizations[rand(0,civilizations.length)];
+    patrols.push(new Patrol(civ,lane));
+  }
+})(6);
+
+/* ===================== AUTOPILOT ===================== */
+let autopilot={active:false,lane:null,t:0,speed:0.002};
+function nearestLane(){
+  let best=null,d=1e9;
+  hyperlanes.forEach(l=>{
+    const mid=l.a.pos.clone().add(l.b.pos).multiplyScalar(0.5);
+    const dist=ship.position.distanceTo(mid);
+    if(dist<d){d=dist;best=l;}
+  });
+  return best;
+}
+function engageAutopilot(){
+  const lane=nearestLane();
+  if(!lane){ log("No hyperlane nearby."); return; }
+  autopilot.active=true; autopilot.lane=lane; autopilot.t=0;
+  log(`Autopilot engaged on ${lane.a.name} ↔ ${lane.b.name}`);
+}
+function updateAutopilot(){
+  if(!autopilot.active||!autopilot.lane) return;
+  autopilot.t+=autopilot.speed*(1+autopilot.lane.traffic*0.05);
+  const a=autopilot.lane.a.pos, b=autopilot.lane.b.pos;
+  ship.position.copy(a.clone().lerp(b,clamp(autopilot.t,0,1)));
+  if(autopilot.t>=1){
+    autopilot.active=false; currentSystem=autopilot.lane.b;
+    log(`Arrived at ${currentSystem.name}`);
+  }
+}
+
+/* ===================== FLEETS & BATTLES ===================== */
+class WarShip{
+  constructor(owner, system, type="destroyer"){
+    this.owner = owner;
+    this.system = system;
+    this.type = type;
+    this.hp = type==="capital" ? 3000 : type==="destroyer" ? 1500 : 400;
+    this.power = type==="capital" ? 120 : type==="destroyer" ? 60 : 20;
+
+    const size = type==="capital" ? 6 : type==="destroyer" ? 4 : 2;
+    this.mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(size, size/2, size*2),
+      new THREE.MeshStandardMaterial({color: owner.name.includes("Orion")?0xff4444:0x44aaff})
+    );
+    this.mesh.position.copy(system.pos.clone().add(new THREE.Vector3(rand(-20,20),0,rand(-20,20))));
+    scene.add(this.mesh);
+  }
+  attack(target){
+    if(!target || target.hp<=0) return;
+    target.hp -= this.power * Math.random();
+    spawnLaser(this.mesh.position, target.mesh.position);
+  }
+  alive(){ return this.hp > 0; }
+}
+let activeBattle = null;
+function startBattle(system){
+  if(!system) return;
+  const a = civilizations[0];
+  const b = civilizations[1];
+  const fleetA = [
+    new WarShip(a, system, "capital"),
+    new WarShip(a, system, "destroyer"),
+    new WarShip(a, system, "fighter"),
+    new WarShip(a, system, "fighter")
+  ];
+  const fleetB = [
+    new WarShip(b, system, "capital"),
+    new WarShip(b, system, "destroyer"),
+    new WarShip(b, system, "fighter"),
+    new WarShip(b, system, "fighter")
+  ];
+  activeBattle = {system, fleetA, fleetB};
+  log(`⚔ Battle ignited in ${system.name} between ${a.name} and ${b.name}`);
+}
+function updateBattle(){
+  if(!activeBattle) return;
+  let {fleetA, fleetB, system} = activeBattle;
+
+  fleetA.forEach(a=>{
+    if(!a.alive()) return;
+    const target = fleetB.find(b=>b.alive());
+    if(target) a.attack(target);
+  });
+  fleetB.forEach(b=>{
+    if(!b.alive()) return;
+    const target = fleetA.find(a=>a.alive());
+    if(target) b.attack(target);
+  });
+
+  fleetA = fleetA.filter(s=>{
+    if(!s.alive()){ scene.remove(s.mesh); spawnExplosion(s.mesh.position); }
+    return s.alive();
+  });
+  fleetB = fleetB.filter(s=>{
+    if(!s.alive()){ scene.remove(s.mesh); spawnExplosion(s.mesh.position); }
+    return s.alive();
+  });
+  activeBattle.fleetA=fleetA; activeBattle.fleetB=fleetB;
+
+  if(fleetA.length===0 || fleetB.length===0){
+    const winner = fleetA.length>0 ? civilizations[0] : civilizations[1];
+    system.owner = winner;
+    log(`🏴 ${winner.name} conquered ${system.name}`);
+    activeBattle = null;
+  }
+}
+function spawnLaser(a,b){
+  const geom = new THREE.BufferGeometry().setFromPoints([a,b]);
+  const mat = new THREE.LineBasicMaterial({color:0xff0000});
+  const line = new THREE.Line(geom,mat);
+  scene.add(line);
+  setTimeout(()=>scene.remove(line), 100);
+}
+function spawnExplosion(pos){
+  const s = new THREE.Mesh(
+    new THREE.SphereGeometry(2,8,8),
+    new THREE.MeshStandardMaterial({color:0xffaa00, emissive:0xff6600})
+  );
+  s.position.copy(pos);
+  scene.add(s);
+  setTimeout(()=>scene.remove(s),300);
+}
+
+/* ===================== INPUT ===================== */
+let keys={};
+addEventListener("keydown",e=>{
+  const k=e.key.toLowerCase(); keys[k]=true;
+  if(e.key==="Escape") {
+    const timePanel = document.getElementById("timeSpeedPanel");
+    const helpPanel = document.getElementById("helpPanel");
+    if(timePanel.style.display === "block") { closeTimeSpeedPanel(); }
+    else if(helpPanel.style.display === "block") { toggleHelpPanel(); }
+    else { toggleMenu(); }
+  }
+  if(k==="m") toggleMap();
+  if(k==="f") interact();
+  if(k==="t") toggleTimeSpeedPanel();
+  if(k==="h") engageAutopilot();
+  if(k==="b" && currentSystem) startBattle(currentSystem);
+  if(e.key==="Tab"){ e.preventDefault(); toggleMode(); }
+  if(k==="w") mouse.moveForward = true;
+  if(k==="s") mouse.moveBack = true;
+  if(k==="a") mouse.moveLeft = true;
+  if(k==="d") mouse.moveRight = true;
+  if(e.code==="Space") { e.preventDefault(); moveUp = true; }
+  if(e.code==="ControlLeft" || e.code==="ControlRight") moveDown = true;
+});
+addEventListener("keyup",e=>{
+  const k=e.key.toLowerCase();
+  keys[k]=false;
+  if(k==="w") mouse.moveForward = false;
+  if(k==="s") mouse.moveBack = false;
+  if(k==="a") mouse.moveLeft = false;
+  if(k==="d") mouse.moveRight = false;
+  if(e.code==="Space") moveUp = false;
+  if(e.code==="ControlLeft" || e.code==="ControlRight") moveDown = false;
+});
+
+/* ===================== MOUSE INPUT ===================== */
+addEventListener("mousemove",e=>{
+  mouse.x = (e.clientX / innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+  const deltaX = e.movementX || 0;
+  const deltaY = e.movementY || 0;
+  cameraRotation.y += deltaX * mouseSensitivity;
+  cameraRotation.x += deltaY * mouseSensitivity;
+  cameraRotation.x = clamp(cameraRotation.x, -Math.PI/3, Math.PI/3);
+});
+addEventListener("mousedown",e=>{
+  mouse.down = true;
+  if(mouse.targetSystem) { currentSystem = mouse.targetSystem; interact(); }
+  if(mouse.targetNPC) talkToNearbyNPC();
+});
+addEventListener("mouseup",e=>mouse.down = false);
+addEventListener("wheel",e=>{
+  e.preventDefault();
+  const zoomSpeed = 2;
+  if(e.deltaY<0) camera.position.y = Math.max(10, camera.position.y - zoomSpeed);
+  if(e.deltaY>0) camera.position.y = Math.min(150, camera.position.y + zoomSpeed);
+},{passive:false});
+addEventListener("contextmenu",e=>e.preventDefault());
+
+/* ===================== TIME SPEED PANEL FUNCTIONS ===================== */
+function toggleTimeSpeedPanel(){
+  const panel = document.getElementById("timeSpeedPanel");
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
+}
+function closeTimeSpeedPanel(){
+  document.getElementById("timeSpeedPanel").style.display = "none";
+}
+function changeTimeSpeed(delta){
+  timeSpeed = Math.max(0.1, Math.min(10, timeSpeed + delta));
+  updateTimeSpeedDisplay();
+}
+function resetTimeSpeed(){
+  timeSpeed = 1;
+  updateTimeSpeedDisplay();
+}
+function updateTimeSpeedDisplay(){
+  const slider = document.getElementById("timeSpeedSlider");
+  const display = document.getElementById("timeSpeedValue");
+  slider.value = timeSpeed;
+  display.innerText = timeSpeed.toFixed(1) + "x";
+}
+addEventListener("change", e=>{
+  if(e.target.id === "timeSpeedSlider"){
+    timeSpeed = parseFloat(e.target.value);
+    updateTimeSpeedDisplay();
+  }
+});
+
+/* ===================== HELP PANEL FUNCTIONS ===================== */
+function toggleHelpPanel(){
+  const panel = document.getElementById("helpPanel");
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
+}
+
+/* ===================== MOVEMENT ===================== */
+function move(){
+  const speed = mode==="GALAXY"?1.4:0.8;
+  const obj = mode==="GALAXY"?ship:rover;
+  
+  // Simple directional movement
+  if(mouse.moveForward) obj.position.z += speed;
+  if(mouse.moveBack) obj.position.z -= speed;
+  if(mouse.moveLeft) obj.position.x -= speed;
+  if(mouse.moveRight) obj.position.x += speed;
+  if(moveUp) obj.position.y += speed;
+  if(moveDown) obj.position.y -= speed;
+
+  const camDist = mode==="GALAXY"?120:40;
+  const camHeight = mode==="GALAXY"?50:20;
+  const targetCam = new THREE.Vector3(
+    obj.position.x + Math.sin(cameraRotation.y) * camDist,
+    obj.position.y + camHeight + Math.sin(cameraRotation.x) * camDist * 0.5,
+    obj.position.z + Math.cos(cameraRotation.y) * camDist
+  );
+  camera.position.lerp(targetCam, 0.08);
+  camera.lookAt(obj.position);
+  obj.rotation.y = cameraRotation.y;
+}
+
+function updateMouseTargeting(){
+  mouse.targetSystem = null;
+  mouse.targetNPC = null;
+  const targetInfo = document.getElementById("targetInfo");
+  
+  if(mode==="GALAXY"){
+    let nearest=null, dist=1e9;
+    starSystems.forEach(s=>{
+      const d = ship.position.distanceTo(s.pos);
+      if(d<dist){ dist=d; nearest=s; }
+    });
+    if(nearest && dist<100){
+      const screenPos = getScreenPosition(nearest.pos);
+      if(screenPos.inFrustum){
+        mouse.targetSystem = nearest;
+        targetInfo.innerText = `${nearest.name}\n${nearest.owner?nearest.owner.name:"Unclaimed"}\nDist: ${dist.toFixed(0)}`;
+        targetInfo.style.display = "block";
+        targetInfo.style.left = (screenPos.x*50+50)+"%";
+        targetInfo.style.top = (screenPos.y*50+50)+"%";
+      }
+    }
+  }else if(mode==="PLANET" && population.length>0){
+    let nearest=null, best=1e9;
+    population.forEach(p=>{
+      if(!p.alive) return;
+      const d = rover.position.distanceTo(p.mesh.position);
+      if(d<best){ best=d; nearest=p; }
+    });
+    if(nearest && best<50){
+      mouse.targetNPC = nearest;
+      targetInfo.innerText = `Citizen\nAge: ${nearest.age}\nEnergy: ${nearest.energy.toFixed(0)}`;
+      targetInfo.style.display = "block";
+      targetInfo.style.left = (mouse.x*50+50)+"%";
+      targetInfo.style.top = (mouse.y*50+50)+"%";
+    }
+  }
+  if(!mouse.targetSystem && !mouse.targetNPC) targetInfo.style.display = "none";
+}
+
+function getScreenPosition(pos){
+  const v = new THREE.Vector3();
+  v.copy(pos).project(camera);
+  return {x: v.x, y: v.y, inFrustum: v.z < 1};
+}
+
+/* ===================== LAND / LIFTOFF ===================== */
+function toggleMode(){
+  if(mode==="GALAXY" && currentSystem){ landOnPlanet(currentSystem); }
+  else if(mode==="PLANET"){ liftoff(); }
+}
+function landOnPlanet(system){
+  mode="PLANET"; currentSystem=system;
+  ship.visible=false; rover.visible=true; rover.position.set(0,1,0);
+  ground.visible=true; buildings.forEach(b=>b.visible=true);
+  spawnCitizens(30); log(`Landed on ${system.name}`);
+}
+function liftoff(){
+  mode="GALAXY";
+  ship.visible=true; rover.visible=false;
+  ground.visible=false; buildings.forEach(b=>b.visible=false);
+  population.forEach(p=>scene.remove(p.mesh)); population=[];
+  log("Lifted off to orbit");
+}
+
+/* ===================== INTERACTION ===================== */
+function interact(){
+  if(mode==="GALAXY"){
+    let nearest=null,dist=1e9;
+    starSystems.forEach(s=>{ const d=ship.position.distanceTo(s.pos); if(d<dist){dist=d;nearest=s;}});
+    if(nearest && dist<30){
+      if(!nearest.owner) civilizations[0].expand(nearest);
+      currentSystem=nearest;
+      if(nearest.hasStarport){
+        log(`🛰 Docked at ${nearest.name} Starport — trade flowing`);
+        world.economy+=200;
+      }else{
+        log(`Orbited ${nearest.name} (TAB to land)`);
+      }
+    }
+  }else{
+    log("You interact with the city. Life continues…");
+  }
+}
+
+/* ===================== SYSTEMS ===================== */
+function updateTime(){
+  world.hour+=0.1*timeSpeed; if(world.hour>=24){world.hour=0; world.day++;}
+  if(world.day>365){world.day=1; world.year++;}
+}
+function updateWeather(){
+  if(Math.random()<0.02){ const w=["Clear","Rain","Storm","Cold","Heatwave"]; world.weather=w[Math.floor(Math.random()*w.length)]; }
+}
+function diseaseSystem(){
+  world.disease+=Math.random()*0.5-0.2; world.disease=clamp(world.disease,0,100);
+  if(world.disease>40){ 
+    population.forEach(p=>{ if(p.alive) p.energy-=1; }); 
+    nations.forEach(n=>n.population*=0.99); 
+    if(world.year - plagueLastLogged > 5) { log("A plague spreads"); plagueLastLogged = world.year; }
+  }
+}
+function economySystem(){
+  world.economy+=nations.reduce((a,n)=>a+n.treasury,0)*0.0001;
+  world.corruption=clamp(world.corruption+Math.random()*2-1,0,100);
+}
+function warSystem(){
+  if(Math.random()<0.01){
+    const a=nations[rand(0,nations.length)], b=nations[rand(0,nations.length)];
+    if(a&&b&&a!==b){
+      log(`${a.name} declared war on ${b.name}`);
+      if(a.military*Math.random()>b.military*Math.random()){ b.population*=0.9; a.treasury+=3000; log(`${a.name} won`); }
+      else{ a.population*=0.9; b.treasury+=3000; log(`${b.name} won`); }
+    }
+  }
+}
+
+/* ===================== GOD LAYER ===================== */
+function miracle(){ const c=nations[rand(0,nations.length)]; if(c){ c.stability+=20; c.population*=1.05; log(`A miracle blessed ${c.name}`);} }
+function disaster(){ const c=nations[rand(0,nations.length)]; if(c){ c.population*=0.85; c.treasury*=0.7; log(`A disaster struck ${c.name}`);} }
+function plague(){ world.disease+=30; log("A plague was unleashed"); }
+function newNation(){ const n=new Nation("Nation-"+rand(1000,9999)); nations.push(n); log(`${n.name} was founded`); }
+
+/* ===================== SAVE / LOAD ===================== */
+function saveGame(){
+  localStorage.setItem("unified_universe_engine",JSON.stringify({world,nations,civilizations,mode,Emperor}));
+  log("Game saved");
+}
+function loadGame(){
+  const d=JSON.parse(localStorage.getItem("unified_universe_engine")); if(!d) return;
+  world=d.world; nations=d.nations.map(x=>Object.assign(new Nation(x.name),x));
+  civilizations=d.civilizations.map(c=>Object.assign(new Civilization(c.name),c));
+  mode=d.mode||"GALAXY"; Emperor=d.Emperor||Emperor;
+  log("Game loaded");
+}
+
+/* ===================== UI ===================== */
+function hyperlaneMapHTML(){
+  let html = `<b>Galaxy Map — Hyperlanes</b><br><br>`;
+  hyperlanes.forEach(l=>{
+    html += `🛣 ${l.a.name} ↔ ${l.b.name} | traffic ${l.traffic.toFixed(2)} | risk ${(l.risk*100).toFixed(1)}%<br>`;
+  });
+  html += `<br><b>Trade Routes</b><br>`;
+  tradeRoutes.forEach(r=>{
+    html += `📦 ${r.good}: ${r.from.name} → ${r.to.name} | vol ${r.volume} | profit ${r.profit.toFixed(0)}<br>`;
+  });
+  return html;
+}
+function renderHUD(){
+  document.getElementById("hud").innerHTML=`
+  👑 Emperor ${Emperor.name} (House ${Emperor.dynasty}) | Authority ${Emperor.authority} | Legitimacy ${Emperor.legitimacy}<br>
+  📜 Year ${world.year} Day ${world.day} — ${Math.floor(world.hour)}:00<br>
+  🌦 ${world.weather} | 🌡 ${world.temperature}°C | 🦠 ${world.disease.toFixed(1)}%<br>
+  🍎 ${world.food} | 💰 ${world.economy.toFixed(0)} | 🏛 ${world.corruption.toFixed(1)}%<br>
+  👥 Citizens ${population.length} | 🏴 Nations ${nations.length}<br>
+  ⭐ Systems ${starSystems.length} | 🛣 Lanes ${hyperlanes.length} | 🛰 Starports ${starSystems.filter(s=>s.hasStarport).length}<br>
+  Mode: ${mode} — WASD Move | F Interact | H Autopilot | TAB Land/Liftoff | B Battle | M Map | ESC Menu | T Talk | +/- Speed
+  `;
+}
+function toggleMenu(){
+  const m=document.getElementById("menu");
+  m.style.display=m.style.display==="flex"?"none":"flex";
+  m.style.alignItems="center"; m.style.justifyContent="center";
+}
+function toggleMap(){
+  const el=document.getElementById("map");
+  if(el.style.display==="block"){ el.style.display="none"; return; }
+  let html=`<b>${mode==="GALAXY"?"Galaxy":"Planet"} Map</b><br><br>`;
+  if(mode==="GALAXY"){
+    starSystems.forEach(s=> html+=`⭐ ${s.name} — ${s.owner?s.owner.name:"Unclaimed"} ${s.hasStarport?"🛰":""}<br>`);
+    html += "<br>"+hyperlaneMapHTML();
+  }else{
+    html+=`City blocks: ${buildings.length}<br>Citizens: ${population.length}<br>Weather: ${world.weather}<br>`;
+  }
+  el.innerHTML=html; el.style.display="block";
+}
+
+/* ===================== CHATGPT NPC (OPTIONAL) ===================== */
+async function talkToNearbyNPC(){
+  if(mode!=="PLANET" || population.length===0){
+    const chat=document.getElementById("chat");
+    chat.style.display="block";
+    chat.innerText="No NPC nearby (land on a planet first).";
+    return;
+  }
+  let nearest=null, best=1e9;
+  population.forEach(p=>{
+    if(!p.alive) return;
+    const d = rover.position.distanceTo(p.mesh.position);
+    if(d<best){ best=d; nearest=p; }
+  });
+  if(!nearest) return;
+
+  const prompt = `
+You are a citizen in a medieval-fantasy world.
+Name: ${nearest.id}
+Age: ${nearest.age}
+Emotions: love=${nearest.emotions.love}, anger=${nearest.emotions.anger}, fear=${nearest.emotions.fear}
+Partner: ${nearest.partner ? "Yes" : "No"}
+Children: ${nearest.children.length}
+Reputation: ${nearest.reputation}
+Weather: ${world.weather}
+Year: ${world.year}
+
+Speak in-character about your life and the state of the world. Under 120 words.
+`;
+
+  const chat=document.getElementById("chat");
+  chat.style.display="block";
+
+  if(!OPENAI_API_KEY){
+    chat.innerText = "NPC says: \"Trade ships streak the sky while our city endures. The Emperor’s banners fly high.\"";
+    return;
+  }
+
+  try{
+    const res = await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer "+OPENAI_API_KEY
+      },
+      body:JSON.stringify({
+        model: OPENAI_MODEL,
+        messages: [
+          {role:"system", content:"You are an in-world NPC."},
+          {role:"user", content: prompt}
+        ],
+        temperature: 0.9
+      })
+    });
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content || "The citizen stares silently.";
+    chat.innerText = "NPC says:\n\n"+text;
+  }catch(err){
+    chat.innerText = "ChatGPT error: "+err.message;
+  }
+}
+
+/* ===================== LOOP ===================== */
+function tick(){
+  updateTime(); updateWeather(); diseaseSystem(); economySystem(); warSystem();
+  imperialSuccession();
+  world.food+=20;
+
+  civilizations.forEach(c=>c.evolve());
+  nations.forEach(n=>{ n.evolve(); n.ruler.rule(); });
+
+  tradeRoutes.forEach(r=>r.tick());
+  patrols.forEach(p=>p.tick());
+  updateAutopilot();
+  updateBattle();
+
+  if(mode==="PLANET"){
+    population.forEach(p=>{ if(p.alive) p.act(population); });
+    population=population.filter(p=>p.alive);
+  }
+
+  move();
+  updateMouseTargeting();
+  renderHUD();
+  renderer.render(scene,camera);
+  requestAnimationFrame(tick);
+}
+tick();
+</script>
+</body>
+</html>
