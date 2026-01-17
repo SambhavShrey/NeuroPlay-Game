@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenithOS 5.0 - Ultimate Edition</title>
+    <style>
+        :root {
+            --bg-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');
+            --accent: #3b82f6;
+            --glass: rgba(20, 20, 25, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ececec;
+            --text-dim: #a1a1aa;
+            --win-bg: rgba(26, 26, 30, 0.95);
+        }
+
+        * { box-sizing: border-box; user-select: none; }
+        
+        body {
+            margin: 0; padding: 0;
+            background: var(--bg-image) no-repeat center center/cover;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            color: var(--text-main);
+        }
+
+        #brightness-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: black; opacity: 0; pointer-events: none; z-index: 99999;
+            transition: opacity 0.1s;
+        }
+
+        /* --- DESKTOP & ICONS --- */
+        #desktop {
+            height: calc(100vh - 50px);
+            position: relative; overflow: hidden;
+        }
+
+        .icon {
+            width: 84px; padding: 10px;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            cursor: pointer; border-radius: 8px; transition: background 0.2s;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            position: absolute;
+        }
+        .icon:hover { background: rgba(255, 255, 255, 0.1); }
+        .icon:active { cursor: grabbing; }
+        
+        .icon-img {
+            width: 52px; height: 52px;
+            border-radius: 14px; display: flex; align-items: center; justify-content: center;
+            font-size: 26px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+        .icon-label { font-size: 13px; font-weight: 500; text-align: center; pointer-events: none; }
+
+        /* --- WINDOWS --- */
+        .window {
+            position: absolute; background: var(--win-bg);
+            width: 500px; height: 350px; border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            display: flex; flex-direction: column;
+            opacity: 0; transform: scale(0.9) translateY(20px);
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s;
+            overflow: hidden; min-width: 300px; min-height: 200px;
+        }
+
+        .window.open { opacity: 1; transform: scale(1) translateY(0); pointer-events: all; }
+        .window.minimized { opacity: 0; transform: scale(0.8) translateY(200px); pointer-events: none; }
+        .window.maximized { width: 100% !important; height: calc(100% - 50px) !important; top: 0 !important; left: 0 !important; border-radius: 0; }
+
+        .title-bar {
+            height: 40px; background: rgba(255,255,255,0.04);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 14px; flex-shrink: 0;
+        }
+        .drag-area { flex-grow: 1; height: 100%; display: flex; align-items: center; font-size: 13px; color: var(--text-dim); padding-left: 10px; }
+        .controls { display: flex; gap: 8px; }
+        .control-btn { width: 12px; height: 12px; border-radius: 50%; cursor: pointer; }
+        .close { background: #ff5f57; } .min { background: #febc2e; } .max { background: #28c840; }
+
+        .content { flex: 1; padding: 20px; overflow-y: auto; position: relative; }
+        .resizer { position: absolute; bottom: 0; right: 0; width: 20px; height: 20px; cursor: se-resize; z-index: 10; }
+
+        /* --- BROWSER STYLES --- */
+        .browser-bar { display: flex; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); }
+        .browser-input { flex: 1; background: rgba(255,255,255,0.1); border: none; border-radius: 20px; padding: 5px 15px; color: white; outline: none; }
+        iframe { width: 100%; height: 100%; border: none; background: white; }
+
+        /* --- FLAPPY BIRD STYLES --- */
+        #game-container { position: relative; width: 100%; height: 100%; background: #70c5ce; overflow: hidden; cursor: pointer; }
+        #bird { position: absolute; width: 30px; height: 30px; background: #eab308; border-radius: 50%; left: 50px; top: 50%; transition: transform 0.1s; border: 2px solid white; }
+        .obstacle { position: absolute; width: 50px; background: #22c55e; border: 2px solid #14532d; }
+        #score-display { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); font-size: 40px; font-weight: bold; color: white; text-shadow: 2px 2px 0 #000; z-index: 10; }
+        #start-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 20px; font-weight: bold; text-align: center; text-shadow: 1px 1px 0 #000; }
+
+        /* --- APP STORE --- */
+        .store-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
+        .app-card { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; border: 1px solid transparent; }
+        .app-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.08); }
+        .install-btn { background: rgba(255,255,255,0.1); border: none; padding: 6px 16px; border-radius: 20px; color: var(--accent); cursor: pointer; margin-top: auto; font-size: 12px; width: 100%; }
+        .install-btn:hover { background: var(--accent); color: white; }
+        .install-btn.installed { border: 1px solid #10b981; color: #10b981; background: transparent; pointer-events: none; }
+
+        /* --- SETTINGS --- */
+        .settings-tab { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+        .tab-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; font-size: 14px; padding: 5px 10px; }
+        .tab-btn.active { color: white; background: rgba(255,255,255,0.1); border-radius: 6px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* --- TERMINAL REFINED --- */
+        #terminal-output { caret-color: #0f0 !important; }
+        #terminal-input { caret-color: #0f0 !important; }
+        .terminal-cursor { display: inline-block; width: 8px; height: 16px; background: #0f0; animation: blink 1s infinite; margin-left: 2px; }
+        @keyframes blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+
+        /* --- APP MANAGER --- */
+        .app-list { display: flex; flex-direction: column; gap: 10px; }
+        .app-item { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.1); }
+        .app-item:hover { background: rgba(255,255,255,0.08); border-color: var(--accent); }
+        .app-info { display: flex; align-items: center; gap: 15px; flex: 1; }
+        .app-icon { font-size: 32px; }
+        .app-details h4 { margin: 0; font-size: 14px; }
+        .app-details p { margin: 3px 0; font-size: 12px; color: var(--text-dim); }
+        .uninstall-btn { background: #ff5f57; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+        .uninstall-btn:hover { background: #ff3b30; }
+        .sys-app { opacity: 0.7; }
+        .sys-app .uninstall-btn { opacity: 0.5; cursor: not-allowed; }
+
+        /* --- VS CODE EDITOR --- */
+        #code-editor { width: 100%; height: 100%; font-family: 'Courier New', monospace; font-size: 14px; background: #1e1e1e; color: #d4d4d4; border: none; padding: 15px; resize: none; outline: none; line-height: 1.6; }
+        .editor-toolbar { display: flex; gap: 10px; padding: 10px; background: #2d2d30; border-bottom: 1px solid rgba(255,255,255,0.1); align-items: center; }
+        .editor-btn { background: rgba(255,255,255,0.1); border: none; color: white; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+        .editor-btn:hover { background: var(--accent); }
+
+        /* --- FILE MANAGER --- */
+        .file-item { padding: 10px; background: rgba(255,255,255,0.05); margin-bottom: 8px; border-radius: 6px; display: flex; align-items: center; gap: 10px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); }
+        .file-item:hover { background: rgba(255,255,255,0.1); border-color: var(--accent); }
+        .file-icon { font-size: 24px; width: 30px; text-align: center; }
+        .file-details { flex: 1; }
+        .file-name { font-weight: 500; margin-bottom: 2px; }
+        .file-info { font-size: 11px; color: var(--text-dim); }
+        .file-action { background: rgba(255,255,255,0.1); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .file-action:hover { background: var(--accent); }
+        
+        /* --- TASKBAR --- */
+        #taskbar { position: absolute; bottom: 0; width: 100%; height: 50px; background: var(--glass); backdrop-filter: blur(25px); border-top: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 1000; }
+        .dock { display: flex; gap: 6px; height: 100%; align-items: center; position: absolute; left: 50%; transform: translateX(-50%); }
+        .dock-icon { width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 10px; cursor: pointer; transition: 0.2s; font-size: 20px; position: relative; }
+        .dock-icon:hover { background: rgba(255,255,255,0.15); transform: scale(1.1); }
+        .dock-icon.active::after { content: ''; position: absolute; bottom: 4px; width: 4px; height: 4px; background: var(--text-main); border-radius: 50%; }
+
+        /* --- START MENU --- */
+        #start-menu { position: absolute; bottom: 60px; left: 15px; width: 280px; background: rgba(30, 30, 35, 0.95); backdrop-filter: blur(30px); border: 1px solid var(--glass-border); border-radius: 12px; padding: 10px; display: none; z-index: 10000; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        #start-menu.show { display: block; animation: popUp 0.15s ease-out; }
+        @keyframes popUp { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        .menu-item { padding: 12px; border-radius: 6px; cursor: pointer; display: flex; gap: 12px; align-items: center; font-size: 14px; }
+        .menu-item:hover { background: var(--accent); color: white; }
+
+        /* --- SEARCH BAR --- */
+        #search-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 50000; align-items: center; justify-content: center; }
+        #search-overlay.show { display: flex; }
+        #search-container { width: 600px; background: var(--win-bg); border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.8); overflow: hidden; border: 1px solid var(--glass-border); }
+        #search-input { width: 100%; padding: 20px; background: transparent; border: none; font-size: 18px; color: white; outline: none; }
+        #search-results { max-height: 400px; overflow-y: auto; }
+        .search-item { padding: 12px 20px; border-top: 1px solid rgba(255,255,255,0.05); cursor: pointer; display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        .search-item:hover { background: rgba(255,255,255,0.1); }
+        .search-icon-item { font-size: 20px; width: 30px; text-align: center; }
+
+        /* --- CALCULATOR STYLES --- */
+        #calc-display { width: 100%; padding: 20px; background: #000; color: #00ff00; font-size: 28px; text-align: right; border: none; outline: none; font-family: 'Courier New', monospace; word-wrap: break-word; word-break: break-all; }
+        .calc-buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 15px; }
+        .calc-btn { padding: 15px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.2s; }
+        .calc-btn:hover { background: rgba(255,255,255,0.2); }
+        .calc-btn.operator { background: var(--accent); color: white; }
+        .calc-btn.equals { background: #10b981; color: white; }
+        .calc-btn.special { background: #ff5f57; color: white; }
+        .calc-mode-toggle { padding: 10px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; gap: 10px; }
+        .calc-mode-btn { flex: 1; padding: 8px; background: rgba(255,255,255,0.1); border: 1px solid transparent; color: white; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; }
+        .calc-mode-btn.active { background: var(--accent); border-color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div id="brightness-overlay"></div>
+
+    <div id="desktop">
+        <div class="icon" id="icon-store" style="top: 20px; left: 20px;" ondblclick="appManager.toggle('store')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">🛍️</div>
+            <div class="icon-label">Store</div>
+        </div>
+        <div class="icon" id="icon-settings" style="top: 20px; left: 120px;" ondblclick="appManager.toggle('settings')">
+            <div class="icon-img" style="background: #555;">⚙️</div>
+            <div class="icon-label">Settings</div>
+        </div>
+        <div class="icon" id="icon-browser" style="top: 130px; left: 20px;" ondblclick="appManager.toggle('browser')">
+            <div class="icon-img" style="background: #f97316;">🌐</div>
+            <div class="icon-label">Browser</div>
+        </div>
+        <div class="icon" id="icon-notepad" style="top: 130px; left: 120px;" ondblclick="appManager.toggle('notepad')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #f59e0b, #d97706);">📝</div>
+            <div class="icon-label">Notes</div>
+        </div>
+        <div class="icon" id="icon-terminal" style="top: 240px; left: 20px;" ondblclick="appManager.toggle('terminal')">
+            <div class="icon-img" style="background: #1a1a1a;">⌨️</div>
+            <div class="icon-label">Terminal</div>
+        </div>
+        <div class="icon" id="icon-appmanager" style="top: 240px; left: 120px;" ondblclick="appManager.toggle('appmanager')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #667eea, #764ba2);">📦</div>
+            <div class="icon-label">App Manager</div>
+        </div>
+        <div class="icon" id="icon-vscode" style="top: 350px; left: 20px;" ondblclick="appManager.toggle('vscode')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #007acc, #0098ff);">💻</div>
+            <div class="icon-label">VS Code</div>
+        </div>
+        <div class="icon" id="icon-youtube" style="top: 350px; left: 120px;" ondblclick="appManager.toggle('youtube')">
+            <div class="icon-img" style="background: #ff0000;">▶️</div>
+            <div class="icon-label">YouTube</div>
+        </div>
+        <div class="icon" id="icon-files" style="top: 460px; left: 20px;" ondblclick="appManager.toggle('files')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);">📁</div>
+            <div class="icon-label">Files</div>
+        </div>
+        <div class="icon" id="icon-calculator" style="top: 460px; left: 120px;" ondblclick="appManager.toggle('calculator')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">🧮</div>
+            <div class="icon-label">Calculator</div>
+        </div>
+        <div class="icon" id="icon-search" style="top: 570px; left: 20px;" ondblclick="ui.toggleSearch()">
+            <div class="icon-img" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">🔍</div>
+            <div class="icon-label">Search</div>
+        </div>
+        <div class="icon" id="icon-zombiefps" style="top: 570px; left: 120px;" ondblclick="appManager.toggle('zombiefps')">
+            <div class="icon-img" style="background: linear-gradient(135deg, #991b1b, #7f1d1d);">🧟</div>
+            <div class="icon-label">Zombie FPS</div>
+        </div>
+    </div>
+
+    <!-- SEARCH OVERLAY -->
+    <div id="search-overlay">
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Search apps, files, commands...">
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+    <div id="win-store" class="window" style="top: 10%; left: 10%; width: 600px; height: 450px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('store')"></div><div class="control-btn min" onclick="appManager.minimize('store')"></div></div>
+            <div class="drag-area">App Store</div>
+        </div>
+        <div class="content">
+            <h3 style="margin-top:0;">Top Games & Apps</h3>
+            <div class="store-grid">
+                <div class="app-card">
+                    <div style="font-size:30px;">🐦</div>
+                    <h4>Flappy Bird</h4>
+                    <button class="install-btn" id="btn-flappy" onclick="store.install('flappy')">GET</button>
+                </div>
+                <div class="app-card">
+                    <div style="font-size:30px;">⭕</div>
+                    <h4>Tic Tac Toe</h4>
+                    <button class="install-btn" id="btn-tictactoe" onclick="store.install('tictactoe')">GET</button>
+                </div>
+                <div class="app-card">
+                    <div style="font-size:30px;">📸</div>
+                    <h4>Camera</h4>
+                    <button class="install-btn" id="btn-camera" onclick="store.install('camera')">GET</button>
+                </div>
+                <div class="app-card">
+                    <div style="font-size:30px;">🧮</div>
+                    <h4>Calculator</h4>
+                    <button class="install-btn installed">INSTALLED</button>
+                </div>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-flappy" class="window" style="top: 15%; left: 30%; width: 400px; height: 550px; display: none;">
+        <div class="title-bar">
+            <div class="controls">
+                <div class="control-btn close" onclick="appManager.close('flappy'); flappy.reset()"></div>
+                <div class="control-btn min" onclick="appManager.minimize('flappy')"></div>
+                <div class="control-btn max" onclick="appManager.maximize('flappy')"></div>
+            </div>
+            <div class="drag-area">Flappy Bird</div>
+        </div>
+        <div class="content" style="padding:0;">
+            <div id="game-container" onclick="flappy.jump()">
+                <div id="score-display">0</div>
+                <div id="start-msg">Click to Start</div>
+                <div id="bird"></div>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-browser" class="window" style="top: 10%; left: 15%; width: 800px; height: 500px;">
+        <div class="title-bar">
+            <div class="controls">
+                <div class="control-btn close" onclick="appManager.close('browser')"></div>
+                <div class="control-btn min" onclick="appManager.minimize('browser')"></div>
+                <div class="control-btn max" onclick="appManager.maximize('browser')"></div>
+            </div>
+            <div class="drag-area">Zenith Browser</div>
+        </div>
+        <div class="content" style="padding:0; display:flex; flex-direction:column;">
+            <div class="browser-bar">
+                <span style="cursor:pointer;" onclick="document.getElementById('web-frame').src='https://bing.com'">🏠</span>
+                <input type="text" class="browser-input" placeholder="Search or type URL (e.g., wikipedia.org)" onkeydown="if(event.key==='Enter') apps.navigate(this.value)">
+                <span style="cursor:pointer;" onclick="document.getElementById('web-frame').src += ''">🔄</span>
+            </div>
+            <div style="flex:1; background:white;">
+                <iframe id="web-frame" src="https://bing.com/search?q=ZenithOS"></iframe>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-settings" class="window" style="top: 15%; left: 20%; width: 550px; height: 400px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('settings')"></div></div>
+            <div class="drag-area">Settings</div>
+        </div>
+        <div class="content">
+            <div class="settings-tab">
+                <button class="tab-btn active" onclick="apps.tab('display')">Display</button>
+                <button class="tab-btn" onclick="apps.tab('storage')">Storage</button>
+                <button class="tab-btn" onclick="apps.tab('about')">About</button>
+            </div>
+            
+            <div id="tab-display" class="tab-content active">
+                <h4>Brightness</h4>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span>☀️</span><input type="range" min="0" max="80" value="0" style="flex:1" oninput="ui.setBrightness(this.value)"><span>🌑</span>
+                </div>
+                <h4>Wallpaper</h4>
+                <div style="display:flex;gap:10px;margin-top:10px;">
+                    <div style="width:40px;height:40px;background:#333;border-radius:6px;cursor:pointer;" onclick="ui.setWallpaper('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80')"></div>
+                    <div style="width:40px;height:40px;background:#1e3a8a;border-radius:6px;cursor:pointer;" onclick="ui.setWallpaper('https://images.unsplash.com/photo-1506744038136-46273834b3fb?q=80')"></div>
+                    <div style="width:40px;height:40px;background:#be185d;border-radius:6px;cursor:pointer;" onclick="ui.setWallpaper('https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80')"></div>
+                </div>
+            </div>
+
+            <div id="tab-storage" class="tab-content">
+                <h4>Data Management</h4>
+                <p style="font-size:13px; color:var(--text-dim);">Clear local data to reset apps.</p>
+                <button onclick="localStorage.clear(); location.reload()" style="background:#ff5f57; border:none; color:white; padding:8px 12px; border-radius:6px; cursor:pointer;">Factory Reset ZenithOS</button>
+            </div>
+
+            <div id="tab-about" class="tab-content">
+                <h4>System Info</h4>
+                <p><strong>ZenithOS</strong> v5.0 Ultimate</p>
+                <p><strong>Kernel:</strong> Webkit/Blink Hybrid</p>
+                <p><strong>Uptime:</strong> <span id="uptime">0</span> seconds</p>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-notepad" class="window" style="top: 20%; left: 40%;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('notepad')"></div><div class="control-btn max" onclick="appManager.maximize('notepad')"></div></div>
+            <div class="drag-area">Notes</div>
+        </div>
+        <div style="display:flex;flex-direction:column;height:100%;">
+            <div style="display:flex;gap:10px;padding:10px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.1);">
+                <input type="text" id="note-filename" placeholder="Filename (e.g., notes.txt)" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.1);border:none;border-radius:4px;color:white;outline:none;">
+                <button onclick="notepadApp.save()" style="background:var(--accent);border:none;color:white;padding:6px 14px;border-radius:4px;cursor:pointer;font-weight:bold;">Save</button>
+            </div>
+            <textarea id="note-area" placeholder="Type here..." style="flex:1;padding:15px;background:var(--win-bg);border:none;color:var(--text-main);font-family:monospace;outline:none;resize:none;"></textarea>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-files" class="window" style="top: 10%; left: 5%; width: 800px; height: 550px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('files')"></div><div class="control-btn min" onclick="appManager.minimize('files')"></div><div class="control-btn max" onclick="appManager.maximize('files')"></div></div>
+            <div class="drag-area">File Manager - C:\Users\admin</div>
+        </div>
+        <div class="content" style="padding:0;display:flex;flex-direction:column;">
+            <div style="padding:10px;background:rgba(0,0,0,0.2);border-bottom:1px solid rgba(255,255,255,0.1);display:flex;gap:10px;">
+                <button onclick="fileManager.goUp()" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:6px 12px;border-radius:4px;cursor:pointer;font-size:12px;">⬆ Back</button>
+                <input type="text" id="file-path" placeholder="Path" style="flex:1;padding:6px 10px;background:rgba(255,255,255,0.1);border:none;border-radius:4px;color:white;outline:none;" readonly>
+            </div>
+            <div id="file-list" style="flex:1;overflow-y:auto;padding:10px;"></div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-terminal" class="window" style="top: 25%; left: 50%; width: 800px; height: 450px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('terminal')"></div><div class="control-btn min" onclick="appManager.minimize('terminal')"></div><div class="control-btn max" onclick="appManager.maximize('terminal')"></div></div>
+            <div class="drag-area">Command Prompt - ZenithOS</div>
+        </div>
+        <div class="content" id="terminal-output" style="padding:12px;font-family:'Courier New',monospace;font-size:13px;background:#0a0a0a;color:#0f0;overflow-y:auto;white-space:pre-wrap;word-wrap:break-word;border-bottom:1px solid rgba(0,255,0,0.2);line-height:1.5;">
+            ╔════════════════════════════════════════════════════════════════╗<br/>
+            ║    ZenithOS Command Prompt v5.0 - Advanced Terminal System    ║<br/>
+            ╚════════════════════════════════════════════════════════════════╝<br/>
+            <br/>
+            Welcome! Type 'help' for available commands.<br/>
+            <br/>
+            C:\Users\admin>
+        </div>
+        <div style="display:flex;align-items:center;padding:10px 12px;border-top:1px solid rgba(0,255,0,0.2);background:#0a0a0a;">
+            <span style="color:#0f0;margin-right:8px;font-weight:bold;">C:\Users\admin></span>
+            <input type="text" id="terminal-input" placeholder="" style="flex:1;background:transparent;border:none;color:#0f0;font-family:'Courier New',monospace;font-size:13px;outline:none;padding:4px 0;" onkeydown="if(event.key==='Enter') terminal.execute(this.value); if(event.key==='ArrowUp') terminal.historyUp(); if(event.key==='ArrowDown') terminal.historyDown();">
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-appmanager" class="window" style="top: 15%; left: 25%; width: 650px; height: 500px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('appmanager')"></div><div class="control-btn min" onclick="appManager.minimize('appmanager')"></div><div class="control-btn max" onclick="appManager.maximize('appmanager')"></div></div>
+            <div class="drag-area">App Manager</div>
+        </div>
+        <div class="content">
+            <h3 style="margin-top:0;">Installed Applications</h3>
+            <div id="app-list-container" class="app-list"></div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-vscode" class="window" style="top: 10%; left: 35%; width: 900px; height: 600px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('vscode')"></div><div class="control-btn min" onclick="appManager.minimize('vscode')"></div><div class="control-btn max" onclick="appManager.maximize('vscode')"></div></div>
+            <div class="drag-area">Code Editor</div>
+        </div>
+        <div style="display:flex;height:100%;">
+            <div style="width:70%;display:flex;flex-direction:column;border-right:1px solid rgba(255,255,255,0.1);">
+                <div class="editor-toolbar">
+                    <button class="editor-btn" onclick="codeEditor.newFile()">New</button>
+                    <button class="editor-btn" onclick="codeEditor.runCode()">▶ Run</button>
+                    <button class="editor-btn" onclick="codeEditor.clearCode()">Clear</button>
+                    <select id="language-select" onchange="codeEditor.changeLanguage(this.value)" style="background:rgba(255,255,255,0.1);border:none;color:white;padding:6px 8px;border-radius:4px;font-size:12px;">
+                        <option value="javascript">JavaScript</option>
+                        <option value="html">HTML</option>
+                        <option value="css">CSS</option>
+                    </select>
+                </div>
+                <textarea id="code-editor" placeholder="// Write your code here&#10;console.log('Hello ZenithOS!');&#10;&#10;function greet(name) {&#10;  return 'Hello, ' + name;&#10;}&#10;&#10;console.log(greet('User'));"></textarea>
+            </div>
+            <div style="width:30%;display:flex;flex-direction:column;background:#0a0a0a;">
+                <div style="padding:10px;border-bottom:1px solid rgba(255,255,255,0.1);font-weight:bold;color:#0f0;font-size:12px;">OUTPUT</div>
+                <div id="code-output" style="flex:1;overflow-y:auto;padding:10px;color:#0f0;font-family:'Courier New',monospace;font-size:12px;white-space:pre-wrap;word-wrap:break-word;"></div>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-calculator" class="window" style="top: 15%; left: 25%; width: 380px; height: 550px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('calculator')"></div><div class="control-btn min" onclick="appManager.minimize('calculator')"></div><div class="control-btn max" onclick="appManager.maximize('calculator')"></div></div>
+            <div class="drag-area">Calculator</div>
+        </div>
+        <div class="calc-mode-toggle">
+            <button class="calc-mode-btn active" onclick="calculator.setMode('standard')">Standard</button>
+            <button class="calc-mode-btn" onclick="calculator.setMode('scientific')">Scientific</button>
+        </div>
+        <input type="text" id="calc-display" value="0" readonly>
+        <div id="standard-buttons" class="calc-buttons">
+            <button class="calc-btn special" onclick="calculator.clear()">C</button>
+            <button class="calc-btn special" onclick="calculator.delete()">⌫</button>
+            <button class="calc-btn operator" onclick="calculator.operation('/')">÷</button>
+            <button class="calc-btn operator" onclick="calculator.operation('*')">×</button>
+            <button class="calc-btn" onclick="calculator.number('7')">7</button>
+            <button class="calc-btn" onclick="calculator.number('8')">8</button>
+            <button class="calc-btn" onclick="calculator.number('9')">9</button>
+            <button class="calc-btn operator" onclick="calculator.operation('-')">−</button>
+            <button class="calc-btn" onclick="calculator.number('4')">4</button>
+            <button class="calc-btn" onclick="calculator.number('5')">5</button>
+            <button class="calc-btn" onclick="calculator.number('6')">6</button>
+            <button class="calc-btn operator" onclick="calculator.operation('+')">+</button>
+            <button class="calc-btn" onclick="calculator.number('1')">1</button>
+            <button class="calc-btn" onclick="calculator.number('2')">2</button>
+            <button class="calc-btn" onclick="calculator.number('3')">3</button>
+            <button class="calc-btn operator" onclick="calculator.toggleNegative()">±</button>
+            <button class="calc-btn" onclick="calculator.number('0')" style="grid-column:span 2;">0</button>
+            <button class="calc-btn" onclick="calculator.number('.')">.</button>
+            <button class="calc-btn equals" onclick="calculator.equals()" style="grid-column:span 2;">=</button>
+        </div>
+        <div id="scientific-buttons" class="calc-buttons" style="display:none;grid-template-columns:repeat(5,1fr);">
+            <button class="calc-btn special" onclick="calculator.clear()">C</button>
+            <button class="calc-btn special" onclick="calculator.delete()">⌫</button>
+            <button class="calc-btn operator" onclick="calculator.operation('/')">÷</button>
+            <button class="calc-btn operator" onclick="calculator.operation('*')">×</button>
+            <button class="calc-btn" onclick="calculator.toggleMemory()">M+</button>
+            <button class="calc-btn" onclick="calculator.trig('sin')">sin</button>
+            <button class="calc-btn" onclick="calculator.trig('cos')">cos</button>
+            <button class="calc-btn" onclick="calculator.trig('tan')">tan</button>
+            <button class="calc-btn" onclick="calculator.operation('log')">log</button>
+            <button class="calc-btn operator" onclick="calculator.operation('-')">−</button>
+            <button class="calc-btn" onclick="calculator.power()">x²</button>
+            <button class="calc-btn" onclick="calculator.sqrt()">√</button>
+            <button class="calc-btn" onclick="calculator.reciprocal()">1/x</button>
+            <button class="calc-btn" onclick="calculator.number('π')">π</button>
+            <button class="calc-btn operator" onclick="calculator.operation('+')">+</button>
+            <button class="calc-btn" onclick="calculator.number('7')">7</button>
+            <button class="calc-btn" onclick="calculator.number('8')">8</button>
+            <button class="calc-btn" onclick="calculator.number('9')">9</button>
+            <button class="calc-btn" onclick="calculator.factorial()">n!</button>
+            <button class="calc-btn operator" onclick="calculator.operation('%')">%</button>
+            <button class="calc-btn" onclick="calculator.number('4')">4</button>
+            <button class="calc-btn" onclick="calculator.number('5')">5</button>
+            <button class="calc-btn" onclick="calculator.number('6')">6</button>
+            <button class="calc-btn" onclick="calculator.number('(')">(</button>
+            <button class="calc-btn" onclick="calculator.number(')')">)</button>
+            <button class="calc-btn" onclick="calculator.number('1')">1</button>
+            <button class="calc-btn" onclick="calculator.number('2')">2</button>
+            <button class="calc-btn" onclick="calculator.number('3')">3</button>
+            <button class="calc-btn" onclick="calculator.number('e')">e</button>
+            <button class="calc-btn operator" onclick="calculator.toggleNegative()">±</button>
+            <button class="calc-btn" onclick="calculator.number('0')" style="grid-column:span 2;">0</button>
+            <button class="calc-btn" onclick="calculator.number('.')">.</button>
+            <button class="calc-btn equals" style="grid-column:span 2;" onclick="calculator.equals()">=</button>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-tictactoe" class="window" style="top: 20%; left: 30%; width: 400px; height: 450px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('tictactoe'); tictactoe.reset()"></div><div class="control-btn min" onclick="appManager.minimize('tictactoe')"></div><div class="control-btn max" onclick="appManager.maximize('tictactoe')"></div></div>
+            <div class="drag-area">Tic Tac Toe</div>
+        </div>
+        <div class="content" style="padding:20px;display:flex;flex-direction:column;align-items:center;">
+            <div style="font-size:18px;margin-bottom:15px;font-weight:bold;">Player: <span id="ttt-status">X</span></div>
+            <div style="display:grid;grid-template-columns:repeat(3,100px);gap:8px;margin-bottom:20px;">
+                <button class="ttt-cell" onclick="tictactoe.play(0)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-0"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(1)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-1"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(2)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-2"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(3)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-3"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(4)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-4"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(5)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-5"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(6)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-6"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(7)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-7"> </button>
+                <button class="ttt-cell" onclick="tictactoe.play(8)" style="width:100px;height:100px;font-size:28px;font-weight:bold;background:rgba(255,255,255,0.1);border:2px solid var(--accent);border-radius:8px;cursor:pointer;color:white;" id="cell-8"> </button>
+            </div>
+            <button onclick="tictactoe.reset()" style="background:var(--accent);border:none;color:white;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:bold;">New Game</button>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-camera" class="window" style="top: 15%; left: 40%; width: 500px; height: 450px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('camera')"></div><div class="control-btn min" onclick="appManager.minimize('camera')"></div><div class="control-btn max" onclick="appManager.maximize('camera')"></div></div>
+            <div class="drag-area">Camera</div>
+        </div>
+        <div class="content" style="padding:0;display:flex;flex-direction:column;">
+            <div id="camera-preview" style="flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+                <video id="camera-video" style="width:100%;height:100%;object-fit:cover;" autoplay playsinline></video>
+                <div id="camera-loading" style="position:absolute;color:#fff;font-size:14px;">Initializing camera...</div>
+            </div>
+            <div style="padding:15px;background:rgba(0,0,0,0.2);border-top:1px solid rgba(255,255,255,0.1);display:flex;gap:10px;">
+                <button onclick="camera.startCamera()" style="flex:1;background:var(--accent);border:none;color:white;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;">📷 Start</button>
+                <button onclick="camera.stopCamera()" style="flex:1;background:#ff5f57;border:none;color:white;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;">⏹ Stop</button>
+                <button onclick="camera.takePhoto()" style="flex:1;background:#10b981;border:none;color:white;padding:10px;border-radius:6px;cursor:pointer;font-weight:bold;">📸 Capture</button>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-zombiefps" class="window" style="top: 5%; left: 5%; width: 1300px; height: 750px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('zombiefps')"></div><div class="control-btn min" onclick="appManager.minimize('zombiefps')"></div><div class="control-btn max" onclick="appManager.maximize('zombiefps')"></div></div>
+            <div class="drag-area">🧟 Zombie FPS - Battle Against The Undead</div>
+        </div>
+        <iframe id="zombiefps-frame" src="ZombieFPS.html" style="width:100%;height:100%;border:none;background:#000;"></iframe>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="win-youtube" class="window" style="top: 10%; left: 20%; width: 900px; height: 600px;">
+        <div class="title-bar">
+            <div class="controls"><div class="control-btn close" onclick="appManager.close('youtube')"></div><div class="control-btn min" onclick="appManager.minimize('youtube')"></div><div class="control-btn max" onclick="appManager.maximize('youtube')"></div></div>
+            <div class="drag-area">YouTube Video Player</div>
+        </div>
+        <div class="content" style="padding:0;display:flex;flex-direction:column;">
+            <div style="padding:10px;background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.1);display:flex;gap:8px;">
+                <input type="text" id="youtube-search" placeholder="Enter video ID or URL (e.g., jNQXAC9IVRw)" style="flex:1;padding:8px 12px;background:rgba(255,255,255,0.1);border:none;border-radius:4px;color:white;outline:none;" onkeydown="if(event.key==='Enter') youtubePlayer.play(document.getElementById('youtube-search').value);">
+                <button onclick="youtubePlayer.play(document.getElementById('youtube-search').value)" style="background:var(--accent);border:none;color:white;padding:8px 16px;border-radius:4px;cursor:pointer;font-weight:bold;">▶ Play</button>
+            </div>
+            <div id="youtube-player" style="flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+                <p style="color:#999;font-size:14px;text-align:center;margin:0;">Enter a video ID above and press Play</p>
+            </div>
+        </div>
+        <div class="resizer"></div>
+    </div>
+
+    <div id="start-menu">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;padding-left:10px;">APPS</div>
+        <div class="menu-item" onclick="appManager.open('files'); ui.toggleStart()">📁 Files</div>
+        <div class="menu-item" onclick="appManager.open('browser'); ui.toggleStart()">🌐 Browser</div>
+        <div class="menu-item" onclick="appManager.open('store'); ui.toggleStart()">🛍️ Store</div>
+        <div class="menu-item" onclick="appManager.open('notepad'); ui.toggleStart()">📝 Notes</div>
+        <div class="menu-item" onclick="appManager.open('terminal'); ui.toggleStart()">⌨️ Terminal</div>
+        <div class="menu-item" onclick="appManager.open('appmanager'); ui.toggleStart()">📦 App Manager</div>
+        <div class="menu-item" onclick="appManager.open('vscode'); ui.toggleStart()">💻 VS Code</div>
+        <div class="menu-item" onclick="appManager.open('youtube'); ui.toggleStart()">▶️ YouTube</div>
+        <div class="menu-item" onclick="appManager.open('calculator'); ui.toggleStart()">🧮 Calculator</div>
+        <div class="menu-item" onclick="appManager.open('zombiefps'); ui.toggleStart()">🧟 Zombie FPS</div>
+        <div class="menu-item" onclick="appManager.open('settings'); ui.toggleStart()">⚙️ Settings</div>
+        <div id="dynamic-apps"></div>
+        <div style="border-top:1px solid rgba(255,255,255,0.1);margin:8px 0;"></div>
+        <div class="menu-item" onclick="location.reload()">🔴 Shutdown</div>
+    </div>
+
+    <div id="taskbar">
+        <div class="dock-icon" onclick="ui.toggleStart()" style="border-radius:50%;background:rgba(255,255,255,0.1);">❖</div>
+        <div class="dock">
+            <div class="dock-icon" id="dock-files" onclick="appManager.toggle('files')">📁</div>
+            <div class="dock-icon" id="dock-browser" onclick="appManager.toggle('browser')">🌐</div>
+            <div class="dock-icon" id="dock-store" onclick="appManager.toggle('store')">🛍️</div>
+            <div class="dock-icon" id="dock-notepad" onclick="appManager.toggle('notepad')">📝</div>
+            <div class="dock-icon" id="dock-terminal" onclick="appManager.toggle('terminal')">⌨️</div>
+            <div class="dock-icon" id="dock-appmanager" onclick="appManager.toggle('appmanager')">📦</div>
+            <div class="dock-icon" id="dock-vscode" onclick="appManager.toggle('vscode')">💻</div>
+            <div class="dock-icon" id="dock-youtube" onclick="appManager.toggle('youtube')">▶️</div>
+            <div class="dock-icon" id="dock-calculator" onclick="appManager.toggle('calculator')">🧮</div>
+            <div class="dock-icon" id="dock-zombiefps" onclick="appManager.toggle('zombiefps')">🧟</div>
+        </div>
+        <div style="font-size:13px;font-weight:600;" id="clock">12:00</div>
+    </div>
+
+    <script>
+        // --- SYSTEM CORE ---
+        const ui = {
+            zIndex: 100,
+            toggleStart: () => document.getElementById('start-menu').classList.toggle('show'),
+            setWallpaper: (url) => document.body.style.setProperty('--bg-image', `url('${url}')`),
+            setBrightness: (val) => document.getElementById('brightness-overlay').style.opacity = val/100,
+            updateTime: () => {
+                const now = new Date();
+                document.getElementById('clock').innerText = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                document.getElementById('uptime').innerText = Math.floor(performance.now()/1000);
+            }
+        };
+
+        const appManager = {
+            open: (id) => {
+                const win = document.getElementById(`win-${id}`);
+                const dockItem = document.getElementById(`dock-${id}`);
+                if (!win) return;
+                win.style.display = 'flex';
+                win.classList.remove('minimized');
+                win.classList.add('open');
+                win.style.zIndex = ++ui.zIndex;
+                if(dockItem) dockItem.classList.add('active');
+            },
+            close: (id) => {
+                const win = document.getElementById(`win-${id}`);
+                win.classList.remove('open', 'minimized', 'maximized');
+                const dockItem = document.getElementById(`dock-${id}`);
+                if(dockItem) dockItem.classList.remove('active');
+                // Clear notepad when closing
+                if (id === 'notepad') {
+                    notepadApp.clear();
+                }
+            },
+            minimize: (id) => {
+                document.getElementById(`win-${id}`).classList.add('minimized');
+                document.getElementById(`win-${id}`).classList.remove('open');
+            },
+            maximize: (id) => document.getElementById(`win-${id}`).classList.toggle('maximized'),
+            toggle: (id) => {
+                const win = document.getElementById(`win-${id}`);
+                if (win.classList.contains('open') && !win.classList.contains('minimized')) {
+                    if (win.style.zIndex == ui.zIndex) appManager.minimize(id);
+                    else win.style.zIndex = ++ui.zIndex;
+                } else appManager.open(id);
+            }
+        };
+
+        // --- FLAPPY BIRD ENGINE ---
+        const flappy = {
+            active: false, birdY: 200, velocity: 0, gravity: 0.5, pipes: [], score: 0, timer: null,
+            reset: () => {
+                flappy.active = false; flappy.birdY = 200; flappy.velocity = 0; flappy.pipes = []; flappy.score = 0;
+                document.getElementById('start-msg').style.display = 'block';
+                document.getElementById('bird').style.top = '200px';
+                document.querySelectorAll('.obstacle').forEach(e => e.remove());
+                clearInterval(flappy.timer);
+            },
+            jump: () => {
+                if (!flappy.active) { flappy.start(); }
+                flappy.velocity = -7;
+            },
+            start: () => {
+                flappy.active = true;
+                document.getElementById('start-msg').style.display = 'none';
+                flappy.timer = setInterval(flappy.loop, 20);
+                flappy.pipeTimer = setInterval(flappy.addPipe, 2000);
+            },
+            addPipe: () => {
+                if(!flappy.active) return;
+                const gap = 150;
+                const topHeight = Math.random() * 250 + 50; // Random height
+                const container = document.getElementById('game-container');
+                
+                const pipeTop = document.createElement('div');
+                pipeTop.className = 'obstacle';
+                pipeTop.style.height = topHeight + 'px';
+                pipeTop.style.top = '0';
+                pipeTop.style.left = '400px';
+                
+                const pipeBottom = document.createElement('div');
+                pipeBottom.className = 'obstacle';
+                pipeBottom.style.height = (550 - topHeight - gap) + 'px';
+                pipeBottom.style.bottom = '0';
+                pipeBottom.style.left = '400px';
+
+                container.appendChild(pipeTop);
+                container.appendChild(pipeBottom);
+                flappy.pipes.push({ top: pipeTop, bottom: pipeBottom, x: 400, passed: false });
+            },
+            loop: () => {
+                flappy.velocity += flappy.gravity;
+                flappy.birdY += flappy.velocity;
+                const birdEl = document.getElementById('bird');
+                birdEl.style.top = flappy.birdY + 'px';
+                birdEl.style.transform = `rotate(${flappy.velocity * 3}deg)`;
+
+                // Collision with floor/ceiling
+                if (flappy.birdY > 520 || flappy.birdY < 0) flappy.gameOver();
+
+                // Pipe Logic
+                flappy.pipes.forEach((p, i) => {
+                    p.x -= 3;
+                    p.top.style.left = p.x + 'px';
+                    p.bottom.style.left = p.x + 'px';
+
+                    if (p.x < -50) {
+                        p.top.remove(); p.bottom.remove();
+                        flappy.pipes.splice(i, 1);
+                    }
+
+                    // Score
+                    if (p.x < 50 && !p.passed) {
+                        p.passed = true;
+                        flappy.score++;
+                        document.getElementById('score-display').innerText = flappy.score;
+                    }
+
+                    // Collision
+                    if (p.x < 80 && p.x > 0) { // Bird width logic
+                        const gapTop = parseInt(p.top.style.height);
+                        const gapBottom = 550 - parseInt(p.bottom.style.height);
+                        if (flappy.birdY < gapTop || flappy.birdY + 30 > gapBottom) {
+                            flappy.gameOver();
+                        }
+                    }
+                });
+            },
+            gameOver: () => {
+                clearInterval(flappy.timer);
+                clearInterval(flappy.pipeTimer);
+                flappy.active = false;
+                document.getElementById('start-msg').innerText = "Game Over! Click to Reset";
+                document.getElementById('start-msg').style.display = 'block';
+                document.getElementById('game-container').onclick = () => {
+                     document.getElementById('game-container').onclick = flappy.jump;
+                     flappy.reset();
+                };
+            }
+        };
+
+        const store = {
+            install: (id) => {
+                document.getElementById(`btn-${id}`).innerText = "INSTALLED";
+                document.getElementById(`btn-${id}`).classList.add('installed');
+                
+                // Add icon
+                const d = document.getElementById('desktop');
+                const i = document.createElement('div');
+                i.className = 'icon';
+                i.style.top = (Math.random()*300+50)+'px';
+                i.style.left = (Math.random()*500+50)+'px';
+                i.ondblclick = () => appManager.toggle(id);
+                
+                let emoji = id=='flappy'?'🐦':(id=='camera'?'📸':'⭕');
+                let name = id=='flappy'?'Flappy':(id=='camera'?'Camera':'TicTacToe');
+                
+                i.innerHTML = `<div class="icon-img" style="background:#444;">${emoji}</div><div class="icon-label">${name}</div>`;
+                d.appendChild(i);
+
+                // Add to start menu
+                const m = document.getElementById('dynamic-apps');
+                const mi = document.createElement('div');
+                mi.className = 'menu-item';
+                mi.innerHTML = `${emoji} ${name}`;
+                mi.onclick = () => { appManager.open(id); ui.toggleStart(); };
+                m.appendChild(mi);
+            }
+        };
+
+        const apps = {
+            navigate: (url) => {
+                if(!url.startsWith('http')) url = 'https://' + url;
+                document.getElementById('web-frame').src = url;
+            },
+            tab: (t) => {
+                document.querySelectorAll('.tab-content').forEach(e => e.classList.remove('active'));
+                document.querySelectorAll('.tab-btn').forEach(e => e.classList.remove('active'));
+                document.getElementById('tab-'+t).classList.add('active');
+                event.target.classList.add('active');
+            }
+        };
+
+        // --- DRAG & DROP & RESIZE ---
+        let drag = { active: false, el: null, diffX: 0, diffY: 0, type: null, w:0, h:0 };
+
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.window')) e.target.closest('.window').style.zIndex = ++ui.zIndex;
+            
+            // Icon Drag
+            if (e.target.closest('.icon')) {
+                drag.active = true; drag.type = 'icon'; drag.el = e.target.closest('.icon');
+                drag.diffX = e.clientX - drag.el.offsetLeft; drag.diffY = e.clientY - drag.el.offsetTop;
+            }
+            // Window Resize
+            else if (e.target.classList.contains('resizer')) {
+                drag.active = true; drag.type = 'resize'; drag.el = e.target.closest('.window');
+                drag.diffX = e.clientX; drag.diffY = e.clientY;
+                drag.w = drag.el.offsetWidth; drag.h = drag.el.offsetHeight;
+            }
+            // Window Drag
+            else if (e.target.closest('.title-bar')) {
+                const w = e.target.closest('.window');
+                if(!w.classList.contains('maximized')){
+                    drag.active = true; drag.type = 'win'; drag.el = w;
+                    drag.diffX = e.clientX - w.offsetLeft; drag.diffY = e.clientY - w.offsetTop;
+                }
+            }
+
+            if (!e.target.closest('#start-menu') && !e.target.closest('.dock-icon')) 
+                document.getElementById('start-menu').classList.remove('show');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if(!drag.active) return;
+            e.preventDefault();
+            if(drag.type === 'resize') {
+                drag.el.style.width = Math.max(300, drag.w + (e.clientX - drag.diffX)) + 'px';
+                drag.el.style.height = Math.max(200, drag.h + (e.clientY - drag.diffY)) + 'px';
+            } else {
+                drag.el.style.left = (e.clientX - drag.diffX) + 'px';
+                drag.el.style.top = (e.clientY - drag.diffY) + 'px';
+            }
+        });
+
+        document.addEventListener('mouseup', () => drag.active = false);
+
+        setInterval(ui.updateTime, 1000);
+        ui.updateTime();
+
+        // --- COMMAND PROMPT ENGINE ---
+        const terminal = {
+            history: [],
+            historyIndex: -1,
+            currentDir: 'C:\\Users\\admin',
+            
+            execute: (command) => {
+                const input = document.getElementById('terminal-input');
+                const output = document.getElementById('terminal-output');
+                
+                if (!command.trim()) {
+                    output.innerHTML += 'C:\\Users\\admin><br/>';
+                    input.value = '';
+                    output.scrollTop = output.scrollHeight;
+                    return;
+                }
+
+                terminal.history.push(command);
+                terminal.historyIndex = -1;
+                
+                output.innerHTML += command + '<br/>';
+                const cmd = command.trim().toLowerCase().split(' ');
+                const result = terminal.processCommand(cmd);
+                
+                output.innerHTML += result + 'C:\\Users\\admin>';
+                input.value = '';
+                output.scrollTop = output.scrollHeight;
+            },
+
+            processCommand: (cmd) => {
+                const command = cmd[0];
+                const args = cmd.slice(1);
+
+                switch(command) {
+                    case 'help':
+                        return `Available Commands:\n` +
+                            `  dir              - List files and directories\n` +
+                            `  time             - Display current time\n` +
+                            `  date             - Display current date\n` +
+                            `  cls              - Clear terminal screen\n` +
+                            `  calc             - Open calculator\n` +
+                            `  browser          - Open web browser\n` +
+                            `  store            - Open app store\n` +
+                            `  notepad          - Open text editor\n` +
+                            `  settings         - Open settings\n` +
+                            `  info             - System information\n` +
+                            `  echo [text]      - Print text\n` +
+                            `  pwd              - Print working directory\n` +
+                            `  cd [path]        - Change directory\n` +
+                            `  shutdown         - Restart system\n` +
+                            `  help             - Show this help menu\n<br/>`;
+
+                    case 'dir':
+                        return `Volume in drive C is ZenithOS\nDirectory of ${terminal.currentDir}\n\n` +
+                            `<DIR>  ..\n` +
+                            `<DIR>  Desktop\n` +
+                            `<DIR>  Documents\n` +
+                            `<DIR>  Downloads\n` +
+                            `FILE   config.sys\n` +
+                            `FILE   autoexec.bat\n\n` +
+                            `3 Dir(s)  3 File(s)<br/><br/>`;
+
+                    case 'time':
+                        const now = new Date();
+                        return `The current time is: ${now.toLocaleTimeString()}\n<br/>`;
+
+                    case 'date':
+                        const today = new Date();
+                        return `The current date is: ${today.toLocaleDateString()}\n<br/>`;
+
+                    case 'cls':
+                    case 'clear':
+                        document.getElementById('terminal-output').innerHTML = 'C:\\Users\\admin>';
+                        return '';
+
+                    case 'pwd':
+                        return `${terminal.currentDir}\n<br/>`;
+
+                    case 'cd':
+                        if (args.length === 0) {
+                            return `${terminal.currentDir}\n<br/>`;
+                        }
+                        terminal.currentDir = args[0];
+                        return `<br/>`;
+
+                    case 'calc':
+                        appManager.open('calculator');
+                        return `Opening Calculator...\n<br/>`;
+
+                    case 'browser':
+                        appManager.open('browser');
+                        return `Opening Browser...\n<br/>`;
+
+                    case 'store':
+                        appManager.open('store');
+                        return `Opening App Store...\n<br/>`;
+
+                    case 'notepad':
+                        appManager.open('notepad');
+                        return `Opening Notepad...\n<br/>`;
+
+                    case 'terminal':
+                        return `Already in terminal!\n<br/>`;
+
+                    case 'settings':
+                        appManager.open('settings');
+                        return `Opening Settings...\n<br/>`;
+
+                    case 'info':
+                        return `ZenithOS v5.0 Ultimate\n` +
+                            `Kernel: Webkit/Blink Hybrid\n` +
+                            `System Memory: 8GB\n` +
+                            `Storage: 256GB SSD\n` +
+                            `Processor: Quantum Core v2.0\n` +
+                            `Uptime: ${Math.floor(performance.now()/1000)}s\n<br/>`;
+
+                    case 'echo':
+                        if (args.length === 0) {
+                            return `\n<br/>`;
+                        }
+                        return `${args.join(' ')}\n<br/>`;
+
+                    case 'shutdown':
+                        return `Shutting down system...\nGoodbye!\n<br/>`;
+
+                    case 'ipconfig':
+                        return `IPv4 Address: 192.168.1.100\n` +
+                            `Gateway: 192.168.1.1\n` +
+                            `DNS: 8.8.8.8\n` +
+                            `MAC Address: 00-1A-2B-3C-4D-5E\n<br/>`;
+
+                    case 'systeminfo':
+                        return `Computer Name: ZENITH-PC\n` +
+                            `OS: ZenithOS v5.0\n` +
+                            `OS Version: Build 5.0.1\n` +
+                            `System Boot Time: 2026-01-17 08:00:00\n<br/>`;
+
+                    case 'ver':
+                        return `ZenithOS v5.0 Ultimate\nKernel: Webkit/Blink Hybrid\n<br/>`;
+
+                    case 'flappy':
+                        appManager.open('flappy');
+                        return `Opening Flappy Bird...\n<br/>`;
+
+                    default:
+                        return `'${command}' is not recognized as an internal or external command.\nType 'help' for available commands.\n<br/>`;
+                }
+            },
+
+            historyUp: () => {
+                if (terminal.history.length === 0) return;
+                terminal.historyIndex = Math.min(terminal.historyIndex + 1, terminal.history.length - 1);
+                document.getElementById('terminal-input').value = terminal.history[terminal.history.length - 1 - terminal.historyIndex];
+            },
+
+            historyDown: () => {
+                if (terminal.historyIndex <= 0) {
+                    terminal.historyIndex = -1;
+                    document.getElementById('terminal-input').value = '';
+                    return;
+                }
+                terminal.historyIndex--;
+                document.getElementById('terminal-input').value = terminal.history[terminal.history.length - 1 - terminal.historyIndex];
+            }
+        };
+
+        // Focus terminal input when window opens
+        const originalOpen = appManager.open;
+        appManager.open = function(id) {
+            originalOpen.call(this, id);
+            if (id === 'terminal') {
+                setTimeout(() => document.getElementById('terminal-input').focus(), 100);
+            }
+            if (id === 'appmanager') {
+                appManager.loadApps();
+            }
+            if (id === 'files') {
+                fileManager.loadDirectory('C:\\Users\\admin');
+            }
+            if (id === 'notepad') {
+                setTimeout(() => document.getElementById('note-area').focus(), 100);
+            }
+        };
+
+        // --- NOTES APP ---
+        const notepadApp = {
+            save: () => {
+                const filename = document.getElementById('note-filename').value || 'untitled.txt';
+                const content = document.getElementById('note-area').value;
+                
+                if (!filename.trim()) {
+                    alert('Please enter a filename');
+                    return;
+                }
+
+                fileManager.saveFile(filename, content);
+                alert('File saved: ' + filename);
+            },
+            clear: () => {
+                document.getElementById('note-area').value = '';
+                document.getElementById('note-filename').value = '';
+            }
+        };
+
+        // --- FILE MANAGER ENGINE ---
+        const fileManager = {
+            files: {
+                'C:\\Users\\admin': [
+                    { name: 'Desktop', type: 'folder', size: '-' },
+                    { name: 'Documents', type: 'folder', size: '-' },
+                    { name: 'Downloads', type: 'folder', size: '-' }
+                ],
+                'C:\\Users\\admin\\Desktop': [
+                    { name: 'project.txt', type: 'file', size: '2.3 KB', content: 'ZenithOS Development Project\n\nStatus: Active\nVersion: 5.0 Ultimate' },
+                    { name: 'notes.txt', type: 'file', size: '1.2 KB', content: 'My Notes\n\n- Learn JavaScript\n- Build cool projects\n- Have fun!' }
+                ],
+                'C:\\Users\\admin\\Documents': [
+                    { name: 'resume.txt', type: 'file', size: '5.6 KB', content: 'Resume\n\nName: Developer\nSkills: HTML, CSS, JavaScript\nExperience: 5 years' },
+                    { name: 'portfolio.txt', type: 'file', size: '8.4 KB', content: 'Portfolio\n\nProjects:\n1. ZenithOS\n2. Web Apps\n3. Games' }
+                ],
+                'C:\\Users\\admin\\Downloads': [
+                    { name: 'app.zip', type: 'file', size: '45 MB', content: '[Binary file - cannot display]' },
+                    { name: 'image.jpg', type: 'file', size: '2.8 MB', content: '[Binary image file - cannot display]' }
+                ]
+            },
+            currentPath: 'C:\\Users\\admin',
+            
+            loadDirectory: (path) => {
+                fileManager.currentPath = path;
+                document.getElementById('file-path').value = path;
+                
+                const fileList = document.getElementById('file-list');
+                fileList.innerHTML = '';
+                
+                const items = fileManager.files[path] || [];
+                
+                items.forEach((item, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'file-item';
+                    const icon = item.type === 'folder' ? '📁' : '📄';
+                    
+                    let actionHtml = '';
+                    if (item.type === 'folder') {
+                        div.style.cursor = 'pointer';
+                        div.onclick = () => {
+                            const newPath = path + '\\' + item.name;
+                            fileManager.loadDirectory(newPath);
+                        };
+                    } else {
+                        actionHtml = `<button class="file-action" onclick="fileManager.openFile('${index}')">Open</button>`;
+                    }
+                    
+                    div.innerHTML = `
+                        <div class="file-icon">${icon}</div>
+                        <div class="file-details">
+                            <div class="file-name">${item.name}</div>
+                            <div class="file-info">${item.type === 'folder' ? 'Folder' : item.size}</div>
+                        </div>
+                        ${actionHtml}
+                    `;
+                    
+                    fileList.appendChild(div);
+                });
+            },
+            
+            goUp: () => {
+                const parts = fileManager.currentPath.split('\\');
+                if (parts.length > 4) {
+                    parts.pop();
+                    fileManager.loadDirectory(parts.join('\\'));
+                }
+            },
+            
+            openFile: (itemIndex) => {
+                const items = fileManager.files[fileManager.currentPath] || [];
+                const file = items[itemIndex];
+                
+                if (file && file.type === 'file') {
+                    const content = file.content || '[File content not available]';
+                    document.getElementById('note-area').value = content;
+                    document.getElementById('note-filename').value = file.name;
+                    appManager.open('notepad');
+                } else {
+                    alert('Cannot open file');
+                }
+            },
+            
+            saveFile: (filename, content) => {
+                const path = fileManager.currentPath;
+                
+                if (!fileManager.files[path]) {
+                    fileManager.files[path] = [];
+                }
+                
+                const existingFile = fileManager.files[path].find(f => f.name === filename);
+                if (existingFile) {
+                    existingFile.content = content;
+                    existingFile.size = Math.ceil(content.length / 1024) + ' KB';
+                } else {
+                    fileManager.files[path].push({
+                        name: filename,
+                        type: 'file',
+                        size: Math.ceil(content.length / 1024) + ' KB',
+                        content: content
+                    });
+                }
+                
+                fileManager.loadDirectory(path);
+            }
+        };
+
+        // --- APP MANAGER ENGINE ---
+        const appManagerModule = {
+            apps: [
+                { id: 'browser', name: 'Web Browser', emoji: '🌐', size: '45 MB', system: true },
+                { id: 'store', name: 'App Store', emoji: '🛍️', size: '32 MB', system: true },
+                { id: 'notepad', name: 'Text Editor', emoji: '📝', size: '5 MB', system: true },
+                { id: 'settings', name: 'Settings', emoji: '⚙️', size: '12 MB', system: true },
+                { id: 'terminal', name: 'Terminal', emoji: '⌨️', size: '8 MB', system: true },
+                { id: 'flappy', name: 'Flappy Bird', emoji: '🐦', size: '2 MB', system: false },
+                { id: 'tictactoe', name: 'Tic Tac Toe', emoji: '⭕', size: '1.5 MB', system: false },
+                { id: 'camera', name: 'Camera', emoji: '📸', size: '15 MB', system: false },
+                { id: 'zombiefps', name: 'Zombie FPS', emoji: '🧟', size: '8 MB', system: false },
+            ],
+            loadApps: () => {
+                const container = document.getElementById('app-list-container');
+                container.innerHTML = '';
+                appManagerModule.apps.forEach(app => {
+                    const item = document.createElement('div');
+                    item.className = 'app-item' + (app.system ? ' sys-app' : '');
+                    item.innerHTML = `
+                        <div class="app-info">
+                            <div class="app-icon">${app.emoji}</div>
+                            <div class="app-details">
+                                <h4>${app.name}</h4>
+                                <p>${app.size}</p>
+                            </div>
+                        </div>
+                        <button class="uninstall-btn" onclick="appManagerModule.uninstallApp('${app.id}')" ${app.system ? 'disabled' : ''}>
+                            ${app.system ? 'System App' : 'Uninstall'}
+                        </button>
+                    `;
+                    container.appendChild(item);
+                });
+            },
+            uninstallApp: (id) => {
+                const index = appManagerModule.apps.findIndex(a => a.id === id);
+                if (index > -1 && !appManagerModule.apps[index].system) {
+                    appManagerModule.apps.splice(index, 1);
+                    appManagerModule.loadApps();
+                    const icon = document.getElementById(`icon-${id}`);
+                    const dockIcon = document.getElementById(`dock-${id}`);
+                    if (icon) icon.remove();
+                    if (dockIcon) dockIcon.remove();
+                    appManager.close(id);
+                }
+            }
+        };
+
+        // --- VS CODE ENGINE ---
+        const codeEditor = {
+            language: 'javascript',
+            
+            newFile: () => {
+                document.getElementById('code-editor').value = '';
+                document.getElementById('code-output').innerText = '';
+            },
+            
+            clearCode: () => {
+                document.getElementById('code-editor').value = '';
+            },
+            
+            changeLanguage: (lang) => {
+                codeEditor.language = lang;
+            },
+            
+            runCode: () => {
+                const code = document.getElementById('code-editor').value;
+                const output = document.getElementById('code-output');
+                
+                if (!code.trim()) {
+                    output.innerText = '> No code to execute';
+                    return;
+                }
+
+                // Clear previous output
+                output.innerText = '';
+                
+                // Capture console output
+                const logs = [];
+                const oldLog = console.log;
+                const oldError = console.error;
+                const oldWarn = console.warn;
+                
+                console.log = (...args) => {
+                    logs.push('> ' + args.map(arg => {
+                        try {
+                            return typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg);
+                        } catch (e) {
+                            return String(arg);
+                        }
+                    }).join(' '));
+                };
+                
+                console.error = (...args) => {
+                    logs.push('❌ Error: ' + args.join(' '));
+                };
+                
+                console.warn = (...args) => {
+                    logs.push('⚠ Warning: ' + args.join(' '));
+                };
+
+                try {
+                    if (codeEditor.language === 'javascript') {
+                        eval(code);
+                    } else if (codeEditor.language === 'html') {
+                        output.innerText = '✓ HTML Preview rendered (check browser console)';
+                        logs.push('HTML code is ready to render');
+                    } else if (codeEditor.language === 'css') {
+                        output.innerText = '✓ CSS loaded (check applied styles)';
+                        logs.push('CSS code is ready to use');
+                    }
+                    
+                    if (logs.length === 0) {
+                        logs.push('✓ Code executed successfully');
+                    }
+                } catch (e) {
+                    logs.push('❌ Error: ' + e.message);
+                    logs.push('   at line: ' + (e.stack ? e.stack.split('\n')[0] : 'unknown'));
+                }
+
+                console.log = oldLog;
+                console.error = oldError;
+                console.warn = oldWarn;
+                
+                output.innerText = logs.join('\n');
+            }
+        };
+
+        // --- YOUTUBE PLAYER ENGINE ---
+        const youtubePlayer = {
+            play: (input) => {
+                if (!input.trim()) {
+                    alert('Please enter a video ID');
+                    return;
+                }
+
+                let videoId = null;
+                const playerDiv = document.getElementById('youtube-player');
+
+                // Extract video ID from different YouTube URL formats
+                if (input.includes('youtube.com/watch?v=')) {
+                    videoId = input.split('v=')[1].split('&')[0];
+                } else if (input.includes('youtu.be/')) {
+                    videoId = input.split('youtu.be/')[1].split('?')[0];
+                } else if (input.match(/^[a-zA-Z0-9_-]{11}$/)) {
+                    // 11-character video ID
+                    videoId = input;
+                } else {
+                    alert('Invalid video ID. Please use format like: jNQXAC9IVRw');
+                    return;
+                }
+
+                if (videoId && videoId.length === 11) {
+                    // Create iframe dynamically
+                    playerDiv.innerHTML = `<iframe style="width:100%;height:100%;border:none;" src="https://www.youtube.com/embed/${videoId}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
+                    document.getElementById('youtube-search').value = '';
+                }
+            }
+        };
+
+        // --- CALCULATOR ENGINE ---
+        const calculator = {
+            display: '0',
+            previousValue: null,
+            currentOp: null,
+            memory: 0,
+            mode: 'standard',
+            
+            setMode: (mode) => {
+                calculator.mode = mode;
+                document.getElementById('standard-buttons').style.display = mode === 'standard' ? 'grid' : 'none';
+                document.getElementById('scientific-buttons').style.display = mode === 'scientific' ? 'grid' : 'none';
+                document.querySelectorAll('.calc-mode-btn').forEach(b => b.classList.remove('active'));
+                event.target.classList.add('active');
+                calculator.updateDisplay();
+            },
+            
+            number: (num) => {
+                if (calculator.display === '0' && num !== '.' && num !== 'π' && num !== 'e') {
+                    calculator.display = num;
+                } else if (num === 'π') {
+                    calculator.display = String(Math.PI);
+                } else if (num === 'e') {
+                    calculator.display = String(Math.E);
+                } else if (!(num === '.' && calculator.display.includes('.'))) {
+                    calculator.display += num;
+                }
+                calculator.updateDisplay();
+            },
+            
+            operation: (op) => {
+                if (calculator.currentOp !== null && calculator.previousValue !== null) {
+                    calculator.equals();
+                }
+                calculator.previousValue = parseFloat(calculator.display);
+                calculator.currentOp = op;
+                calculator.display = '0';
+            },
+            
+            equals: () => {
+                if (calculator.currentOp === null || calculator.previousValue === null) return;
+                
+                let result;
+                const current = parseFloat(calculator.display);
+                
+                switch(calculator.currentOp) {
+                    case '+': result = calculator.previousValue + current; break;
+                    case '-': result = calculator.previousValue - current; break;
+                    case '*': result = calculator.previousValue * current; break;
+                    case '/': result = calculator.previousValue / current; break;
+                    case '%': result = calculator.previousValue % current; break;
+                    case 'log': result = Math.log10(calculator.previousValue); break;
+                    default: result = current;
+                }
+                
+                calculator.display = String(result);
+                calculator.currentOp = null;
+                calculator.previousValue = null;
+                calculator.updateDisplay();
+            },
+            
+            clear: () => {
+                calculator.display = '0';
+                calculator.previousValue = null;
+                calculator.currentOp = null;
+                calculator.updateDisplay();
+            },
+            
+            delete: () => {
+                if (calculator.display.length > 1) {
+                    calculator.display = calculator.display.slice(0, -1);
+                } else {
+                    calculator.display = '0';
+                }
+                calculator.updateDisplay();
+            },
+            
+            toggleNegative: () => {
+                calculator.display = String(parseFloat(calculator.display) * -1);
+                calculator.updateDisplay();
+            },
+            
+            power: () => {
+                calculator.display = String(Math.pow(parseFloat(calculator.display), 2));
+                calculator.updateDisplay();
+            },
+            
+            sqrt: () => {
+                calculator.display = String(Math.sqrt(parseFloat(calculator.display)));
+                calculator.updateDisplay();
+            },
+            
+            reciprocal: () => {
+                calculator.display = String(1 / parseFloat(calculator.display));
+                calculator.updateDisplay();
+            },
+            
+            factorial: () => {
+                const n = parseInt(calculator.display);
+                let result = 1;
+                for (let i = 2; i <= n; i++) result *= i;
+                calculator.display = String(result);
+                calculator.updateDisplay();
+            },
+            
+            trig: (fn) => {
+                const val = parseFloat(calculator.display);
+                let result;
+                switch(fn) {
+                    case 'sin': result = Math.sin(val * Math.PI / 180); break;
+                    case 'cos': result = Math.cos(val * Math.PI / 180); break;
+                    case 'tan': result = Math.tan(val * Math.PI / 180); break;
+                }
+                calculator.display = String(result.toFixed(10));
+                calculator.updateDisplay();
+            },
+            
+            toggleMemory: () => {
+                calculator.memory += parseFloat(calculator.display);
+                calculator.display = '0';
+                calculator.updateDisplay();
+            },
+            
+            updateDisplay: () => {
+                const val = parseFloat(calculator.display);
+                if (!isNaN(val)) {
+                    document.getElementById('calc-display').value = val.toString().length > 16 ? val.toExponential(8) : calculator.display;
+                } else {
+                    document.getElementById('calc-display').value = calculator.display;
+                }
+            }
+        };
+
+        // --- SEARCH ENGINE ---
+        const searchEngine = {
+            apps: [
+                { name: 'Files', id: 'files', emoji: '📁' },
+                { name: 'Browser', id: 'browser', emoji: '🌐' },
+                { name: 'Store', id: 'store', emoji: '🛍️' },
+                { name: 'Notes', id: 'notepad', emoji: '📝' },
+                { name: 'Terminal', id: 'terminal', emoji: '⌨️' },
+                { name: 'App Manager', id: 'appmanager', emoji: '📦' },
+                { name: 'VS Code', id: 'vscode', emoji: '💻' },
+                { name: 'YouTube', id: 'youtube', emoji: '▶️' },
+                { name: 'Calculator', id: 'calculator', emoji: '🧮' },
+                { name: 'Zombie FPS', id: 'zombiefps', emoji: '🧟' },
+                { name: 'Settings', id: 'settings', emoji: '⚙️' }
+            ],
+            
+            search: (query) => {
+                const results = document.getElementById('search-results');
+                results.innerHTML = '';
+                
+                if (!query.trim()) return;
+                
+                const q = query.toLowerCase();
+                const matches = searchEngine.apps.filter(app => 
+                    app.name.toLowerCase().includes(q) || 
+                    app.id.toLowerCase().includes(q)
+                );
+                
+                matches.forEach(app => {
+                    const item = document.createElement('div');
+                    item.className = 'search-item';
+                    item.innerHTML = `<span class="search-icon-item">${app.emoji}</span><span>${app.name}</span>`;
+                    item.onclick = () => {
+                        appManager.open(app.id);
+                        ui.toggleSearch();
+                    };
+                    results.appendChild(item);
+                });
+                
+                if (matches.length === 0) {
+                    results.innerHTML = '<div class="search-item" style="cursor:default;color:var(--text-dim);">No results found</div>';
+                }
+            }
+        };
+
+        // Update ui object with search toggle
+        ui.toggleSearch = () => {
+            const overlay = document.getElementById('search-overlay');
+            overlay.classList.toggle('show');
+            if (overlay.classList.contains('show')) {
+                document.getElementById('search-input').focus();
+                document.getElementById('search-input').value = '';
+                document.getElementById('search-results').innerHTML = '';
+            }
+        };
+
+        // Search input event
+        document.addEventListener('DOMContentLoaded', () => {
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    searchEngine.search(e.target.value);
+                });
+                document.getElementById('search-overlay').addEventListener('click', (e) => {
+                    if (e.target.id === 'search-overlay') ui.toggleSearch();
+                });
+            }
+        });
+
+        // Keyboard shortcut for search (Cmd+Space or Ctrl+Space)
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.code === 'Space') {
+                e.preventDefault();
+                ui.toggleSearch();
+            }
+        });
+
+        // --- TIC TAC TOE ENGINE ---
+        const tictactoe = {
+            board: ['', '', '', '', '', '', '', '', ''],
+            currentPlayer: 'X',
+            gameOver: false,
+            
+            play: (index) => {
+                if (tictactoe.gameOver || tictactoe.board[index] !== '') return;
+                
+                tictactoe.board[index] = tictactoe.currentPlayer;
+                document.getElementById(`cell-${index}`).innerText = tictactoe.currentPlayer;
+                
+                if (tictactoe.checkWin()) {
+                    document.getElementById('ttt-status').innerText = `${tictactoe.currentPlayer} WINS! 🎉`;
+                    tictactoe.gameOver = true;
+                    return;
+                }
+                
+                if (tictactoe.checkDraw()) {
+                    document.getElementById('ttt-status').innerText = "DRAW! 🤝";
+                    tictactoe.gameOver = true;
+                    return;
+                }
+                
+                tictactoe.currentPlayer = tictactoe.currentPlayer === 'X' ? 'O' : 'X';
+                document.getElementById('ttt-status').innerText = tictactoe.currentPlayer;
+            },
+            
+            checkWin: () => {
+                const lines = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                    [0, 4, 8], [2, 4, 6]
+                ];
+                
+                return lines.some(line => 
+                    tictactoe.board[line[0]] !== '' &&
+                    tictactoe.board[line[0]] === tictactoe.board[line[1]] &&
+                    tictactoe.board[line[0]] === tictactoe.board[line[2]]
+                );
+            },
+            
+            checkDraw: () => {
+                return tictactoe.board.every(cell => cell !== '');
+            },
+            
+            reset: () => {
+                tictactoe.board = ['', '', '', '', '', '', '', '', ''];
+                tictactoe.currentPlayer = 'X';
+                tictactoe.gameOver = false;
+                document.getElementById('ttt-status').innerText = 'X';
+                
+                for (let i = 0; i < 9; i++) {
+                    document.getElementById(`cell-${i}`).innerText = '';
+                }
+            }
+        };
+
+        // --- CAMERA ENGINE ---
+        const camera = {
+            stream: null,
+            canvas: null,
+            
+            startCamera: () => {
+                const video = document.getElementById('camera-video');
+                const loading = document.getElementById('camera-loading');
+                
+                navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+                    .then(stream => {
+                        camera.stream = stream;
+                        video.srcObject = stream;
+                        loading.style.display = 'none';
+                    })
+                    .catch(err => {
+                        loading.innerText = 'Camera access denied or not available';
+                        console.error('Camera error:', err);
+                    });
+            },
+            
+            stopCamera: () => {
+                if (camera.stream) {
+                    camera.stream.getTracks().forEach(track => track.stop());
+                    document.getElementById('camera-video').srcObject = null;
+                    document.getElementById('camera-loading').style.display = 'flex';
+                    document.getElementById('camera-loading').innerText = 'Camera stopped';
+                }
+            },
+            
+            takePhoto: () => {
+                const video = document.getElementById('camera-video');
+                if (!camera.stream) {
+                    alert('Please start camera first');
+                    return;
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL('image/png');
+                link.download = `photo-${Date.now()}.png`;
+                link.click();
+                
+                alert('📷 Photo saved to downloads!');
+            }
+        };
+    </script>
+</body>
+</html>
